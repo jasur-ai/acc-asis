@@ -168,8 +168,21 @@
       </span>
     </div>
 
-    <!-- TOP-RIGHT CONTROLS: "?" Tour Guide + "Profil" Button + Smooth Icon-Only Theme Toggle -->
+    <!-- TOP-RIGHT CONTROLS: Admin Stats (ONLY for 8004724563) + "?" Tour Guide + "Profil" + Theme Toggle -->
     <div class="pointer-events-auto flex items-center gap-1.5 sm:gap-2">
+      <button
+        id="btn-admin-stats"
+        onclick="openAdminStatsModal()"
+        title="Admin Statistika (ID: 8004724563)"
+        class="hidden items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl border text-xs font-semibold shadow-sm hover:opacity-95"
+        style="background-color:var(--primary-soft);border-color:var(--primary);color:var(--primary-text);"
+      >
+        <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/>
+        </svg>
+        <span class="hidden xs:inline sm:inline">Statistika</span>
+      </button>
+
       <button
         id="btn-tour-help"
         onclick="startOnboardingTour(true)"
@@ -579,6 +592,67 @@
     </div>
   </div>
 
+  <!-- ADMIN ANALYTICS & VISUALIZATION MODAL (STRICTLY FOR ADMIN ID: 8004724563 ONLY) -->
+  <div id="admin-stats-modal" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" style="background-color:rgba(0,0,0,0.60);backdrop-filter:blur(3px);">
+    <div class="acas-surface w-full max-w-4xl rounded-t-2xl sm:rounded-2xl border p-4 sm:p-5 space-y-4 max-h-[92dvh] sm:max-h-[90vh] flex flex-col">
+      <!-- Admin Header -->
+      <div class="flex flex-wrap items-center justify-between gap-2 border-b pb-3 shrink-0" style="border-color:var(--border);">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl flex items-center justify-center border" style="background-color:var(--primary-soft);border-color:var(--primary);color:var(--primary-text);">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/>
+            </svg>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h3 class="text-sm font-bold">acc.asis — Admin Analitika va Statistika</h3>
+              <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md" style="background-color:rgba(16,185,129,0.14);color:var(--accent-emerald);">
+                ID: 8004724563
+              </span>
+            </div>
+            <p id="admin-last-updated" class="text-[11px] font-mono" style="color:var(--muted);">Jonli monitoring tizimi</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-1.5 sm:gap-2">
+          <button
+            id="btn-admin-autorefresh"
+            onclick="toggleAdminAutoRefresh()"
+            class="px-2.5 py-1.5 rounded-xl border text-[11px] font-mono font-semibold"
+            style="background-color:var(--surface-alt);border-color:var(--border);color:var(--muted);"
+          >
+            Avto (10s): OFF
+          </button>
+
+          <button
+            onclick="refreshAdminStats()"
+            id="btn-admin-refresh"
+            class="px-3 py-1.5 rounded-xl text-white text-xs font-semibold inline-flex items-center gap-1.5"
+            style="background-color:var(--primary);"
+          >
+            <svg id="icon-admin-refresh" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/>
+            </svg>
+            <span>Yangilash</span>
+          </button>
+
+          <button
+            onclick="closeAdminStatsModal()"
+            class="w-8 h-8 rounded-xl border flex items-center justify-center"
+            style="background-color:var(--surface-alt);border-color:var(--border);color:var(--muted);"
+          >
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Scrollable Analytics Body -->
+      <div id="admin-stats-body" class="space-y-4 overflow-y-auto pr-1 flex-1 text-xs">
+        <div class="p-8 text-center" style="color:var(--muted);">Statistika yuklanmoqda...</div>
+      </div>
+    </div>
+  </div>
+
   <script>
     const SVG_ICONS = {
       calendar: `<svg class="w-3.5 h-3.5 shrink-0 inline mr-1.5" style="color:var(--primary-text)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>`,
@@ -602,8 +676,95 @@
       { id: 'competitions', shortTitle: 'Tanlovlar' }
     ];
 
+    // Har bir foydalanuvchi uchun unikal identifikator (Telegram User ID yoki qurilma UUID)
+    // Shunda har bir inson FAQAT o'zi kirgan hisobni ko'radi — boshqa birovning hisobi hech qachon chiqmaydi!
+    function getAcasUserKey() {
+      const tgUserId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+      if (tgUserId) {
+        return `tg_${tgUserId}`;
+      }
+      let devId = localStorage.getItem('acas_device_uid_v2');
+      if (!devId) {
+        devId = `dev_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
+        localStorage.setItem('acas_device_uid_v2', devId);
+      }
+      return devId;
+    }
+
+    const CURRENT_USER_KEY = getAcasUserKey();
+    const STORAGE_KEY_SESSION = `acas_saved_session_${CURRENT_USER_KEY}`;
+    const STORAGE_KEY_PERM = `acas_permanent_auth_${CURRENT_USER_KEY}`;
+    const STORAGE_KEY_CLOUD = `acas_cloud_auth_${CURRENT_USER_KEY}`;
+
+    // Legacy umumiy kalitni tozalaymiz (boshqa odamning hisobi chiqib qolmasligi uchun)
+    try {
+      localStorage.removeItem('acas_saved_session');
+      localStorage.removeItem('acas_permanent_auth');
+    } catch {}
+
+    const ADMIN_TELEGRAM_ID = '8004724563';
+
+    function checkClientIsAdmin(sessionObj) {
+      const tgWebAppId = String(window.Telegram?.WebApp?.initDataUnsafe?.user?.id || '').trim();
+      const sessTgId = String(sessionObj?.telegramId || '').trim();
+      const keyId = String(CURRENT_USER_KEY || '').replace(/^tg_/, '').trim();
+      return (
+        tgWebAppId === ADMIN_TELEGRAM_ID ||
+        sessTgId === ADMIN_TELEGRAM_ID ||
+        keyId === ADMIN_TELEGRAM_ID ||
+        Boolean(sessionObj?.isAdmin)
+      );
+    }
+
+    // Har bir foydalanuvchi uchun unikal identifikator (Telegram User ID yoki qurilma UUID)
+    // Shunda har bir inson FAQAT o'zi kirgan hisobni ko'radi — boshqa birovning hisobi hech qachon chiqmaydi!
+    function getAcasUserKey() {
+      const tgUserId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+      if (tgUserId) {
+        return `tg_${tgUserId}`;
+      }
+      let devId = localStorage.getItem('acas_device_uid_v2');
+      if (!devId) {
+        devId = `dev_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
+        localStorage.setItem('acas_device_uid_v2', devId);
+      }
+      return devId;
+    }
+
+    const CURRENT_USER_KEY = getAcasUserKey();
+    const STORAGE_KEY_SESSION = `acas_saved_session_${CURRENT_USER_KEY}`;
+    const STORAGE_KEY_PERM = `acas_permanent_auth_${CURRENT_USER_KEY}`;
+    const STORAGE_KEY_CLOUD = `acas_cloud_auth_${CURRENT_USER_KEY}`;
+
+    // Legacy umumiy kalitni tozalaymiz (boshqa odamning hisobi chiqib qolmasligi uchun)
+    try {
+      localStorage.removeItem('acas_saved_session');
+      localStorage.removeItem('acas_permanent_auth');
+    } catch {}
+
+    const ADMIN_TELEGRAM_ID = '8004724563';
+
+    function checkClientIsAdmin(sessionObj) {
+      const tgWebAppId = String(window.Telegram?.WebApp?.initDataUnsafe?.user?.id || '').trim();
+      const sessTgId = String(sessionObj?.telegramId || '').trim();
+      const keyId = String(CURRENT_USER_KEY || '').replace(/^tg_/, '').trim();
+      return (
+        tgWebAppId === ADMIN_TELEGRAM_ID ||
+        sessTgId === ADMIN_TELEGRAM_ID ||
+        keyId === ADMIN_TELEGRAM_ID ||
+        Boolean(sessionObj?.isAdmin)
+      );
+    }
+
     const state = {
       isDark: localStorage.getItem('acas_theme') === 'dark',
+      userKey: CURRENT_USER_KEY,
+      isAdmin: checkClientIsAdmin(null),
+      adminStats: null,
+      adminAutoRefreshTimer: null,
+      clientSecret: '',
+      userKey: CURRENT_USER_KEY,
+      clientSecret: '',
       session: null,
       sessionString: '',
       foldersLoading: false,
@@ -667,7 +828,11 @@
       try {
         await resolveApiBase();
         const res = await fetch(API_BASE + '/api/folders', {
-          headers: state.sessionString ? { 'X-Acas-Session': state.sessionString } : {}
+          headers: {
+            'X-Acas-User-Key': state.userKey,
+            ...(state.clientSecret ? { 'X-Acas-Secret': state.clientSecret } : {}),
+            ...(state.sessionString ? { 'X-Acas-Session': state.sessionString } : {})
+          }
         });
         const data = await res.json();
         if (data.ok) {
@@ -804,46 +969,53 @@
     }
 
     function loadBestLocalCachedSession() {
-      for (const k of ['acas_saved_session', 'acas_permanent_auth']) {
+      for (const k of [STORAGE_KEY_SESSION, STORAGE_KEY_PERM]) {
         const raw = localStorage.getItem(k);
         if (raw) {
           try {
             const p = JSON.parse(raw);
-            if (p && (p.sessionString || p.session)) return p;
+            if (p && p.userKey === state.userKey && (p.sessionString || p.session)) return p;
           } catch {}
         }
       }
       return null;
     }
 
-    // Versiya yangilanganda, server qayta yonganda yoki Mini App qayta ochilganda
-    // kirib turgan hisob ASLO chiqib ketmaydi (faqat foydalanuvchi o'zi Log Out bosgandagina chiqadi!)
+    // Har bir foydalanuvchining o'z kirgan hisobi (userKey bo'yicha) tekshiriladi va saqlanadi!
     async function checkExistingSession() {
       let cachedParsed = loadBestLocalCachedSession();
       if (!cachedParsed || !cachedParsed.sessionString) {
-        const cloudSaved = await readTelegramCloudStorage('acas_cloud_auth');
-        if (cloudSaved && (cloudSaved.sessionString || cloudSaved.session)) {
+        const cloudSaved = await readTelegramCloudStorage(STORAGE_KEY_CLOUD);
+        if (cloudSaved && cloudSaved.userKey === state.userKey && (cloudSaved.sessionString || cloudSaved.session)) {
           cachedParsed = { ...(cachedParsed || {}), ...cloudSaved };
         }
       }
 
-      // 1. Agar qurilmada/Telegram CloudStorage'da saqlangan sessiya bo'lsa — kutmasdan darhol hisobni ochamiz!
+      // 1. Agar AYNAN SHU foydalanuvchining o'z saqlangan sessiyasi bo'lsa — darhol ochamiz
       let alreadyActivated = false;
       if (cachedParsed && cachedParsed.session && cachedParsed.sessionString) {
         activateAuthenticatedView(cachedParsed, true);
         alreadyActivated = true;
+      } else {
+        // Yangi foydalanuvchi bo'lsa — Login oynasi ko'rinadi
+        return;
       }
 
-      // 2. Orqa fonda server bilan sinxronlaymiz (server yangilangan bo'lsa, sessionString serverga tiklanadi)
+      // 2. Orqa fonda shu foydalanuvchining sessiyasini server bilan sinxronlaymiz
       await resolveApiBase();
       try {
         const res = await fetch(API_BASE + '/api/auth/session', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'X-Acas-User-Key': state.userKey,
+            ...(cachedParsed?.clientSecret ? { 'X-Acas-Secret': cachedParsed.clientSecret } : {}),
             ...(cachedParsed?.sessionString ? { 'X-Acas-Session': cachedParsed.sessionString } : {})
           },
-          body: JSON.stringify(cachedParsed || {})
+          body: JSON.stringify({
+            ...(cachedParsed || {}),
+            userKey: state.userKey
+          })
         });
         const data = await res.json();
         if (data.ok && data.authenticated && data.session) {
@@ -856,6 +1028,10 @@
     function activateAuthenticatedView(data, skipAutoScan = false) {
       if (data.session) state.session = data.session;
       if (data.sessionString) state.sessionString = data.sessionString;
+      if (data.clientSecret) state.clientSecret = data.clientSecret;
+      state.isAdmin = Boolean(data.isAdmin) || checkClientIsAdmin(state.session);
+      if (data.clientSecret) state.clientSecret = data.clientSecret;
+      state.isAdmin = Boolean(data.isAdmin) || checkClientIsAdmin(state.session);
       if (Array.isArray(data.folders) && data.folders.length > 0) state.folders = data.folders;
       if (Array.isArray(data.chats) && data.chats.length > 0) state.chats = data.chats;
       if (Array.isArray(data.selectedFolderIds) && data.selectedFolderIds.length > 0) state.selectedFolderIds = data.selectedFolderIds;
@@ -873,6 +1049,12 @@
       const profBtn = document.getElementById('btn-open-profile');
       profBtn.classList.remove('hidden');
       profBtn.classList.add('inline-flex');
+
+      const adminBtn = document.getElementById('btn-admin-stats');
+      if (adminBtn) {
+        adminBtn.classList.toggle('hidden', !state.isAdmin);
+        adminBtn.classList.toggle('inline-flex', state.isAdmin);
+      }
 
       const helpBtn = document.getElementById('btn-tour-help');
       if (helpBtn) {
@@ -905,21 +1087,35 @@
       }
       closeOnboardingTour();
       try {
-        await fetch(API_BASE + '/api/auth/logout', { method: 'POST' });
+        await fetch(API_BASE + '/api/auth/logout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Acas-User-Key': state.userKey
+          },
+          body: JSON.stringify({ userKey: state.userKey })
+        });
       } catch {}
-      localStorage.removeItem('acas_saved_session');
-      localStorage.removeItem('acas_permanent_auth');
-      removeTelegramCloudStorage('acas_cloud_auth');
+      localStorage.removeItem(STORAGE_KEY_SESSION);
+      localStorage.removeItem(STORAGE_KEY_PERM);
+      removeTelegramCloudStorage(STORAGE_KEY_CLOUD);
       state.session = null;
       state.sessionString = '';
+      state.clientSecret = '';
       state.items = [];
       state.chats = [];
       state.folders = [{ id: 'all', title: 'Barcha kanallar va guruhlar', chatsCount: 0 }];
       state.selectedFolderIds = ['all'];
       state.draftSelectedFolderIds = ['all'];
       document.getElementById('profile-modal').classList.add('hidden');
+      closeAdminStatsModal();
       document.getElementById('btn-open-profile').classList.add('hidden');
       document.getElementById('btn-open-profile').classList.remove('inline-flex');
+      const adminBtn = document.getElementById('btn-admin-stats');
+      if (adminBtn) {
+        adminBtn.classList.add('hidden');
+        adminBtn.classList.remove('inline-flex');
+      }
       const helpBtn = document.getElementById('btn-tour-help');
       if (helpBtn) {
         helpBtn.classList.add('hidden');
@@ -988,6 +1184,8 @@
     function persistLocal() {
       if (!state.session) return;
       const fullPayload = {
+        userKey: state.userKey,
+        clientSecret: state.clientSecret,
         session: state.session,
         sessionString: state.sessionString,
         folders: state.folders,
@@ -996,16 +1194,18 @@
         enabledModules: state.enabledModules,
         insights: state.items
       };
-      localStorage.setItem('acas_saved_session', JSON.stringify(fullPayload));
+      localStorage.setItem(STORAGE_KEY_SESSION, JSON.stringify(fullPayload));
       if (state.sessionString) {
         const coreAuth = {
+          userKey: state.userKey,
+          clientSecret: state.clientSecret,
           session: state.session,
           sessionString: state.sessionString,
           selectedFolderIds: state.selectedFolderIds,
           enabledModules: state.enabledModules
         };
-        localStorage.setItem('acas_permanent_auth', JSON.stringify(coreAuth));
-        writeTelegramCloudStorage('acas_cloud_auth', coreAuth);
+        localStorage.setItem(STORAGE_KEY_PERM, JSON.stringify(coreAuth));
+        writeTelegramCloudStorage(STORAGE_KEY_CLOUD, coreAuth);
       }
     }
 
@@ -1024,8 +1224,10 @@
       if (syncTxt) syncTxt.textContent = 'Chatlar olinmoqda...';
 
       const params = new URLSearchParams({
+        userKey: state.userKey,
         folders: state.selectedFolderIds.join(','),
         modules: JSON.stringify(state.enabledModules),
+        ...(state.clientSecret ? { secret: state.clientSecret } : {}),
         ...(state.sessionString ? { token: state.sessionString } : {})
       });
       const es = new EventSource(API_BASE + '/api/insights/stream?' + params.toString());
@@ -1281,8 +1483,11 @@
           try {
             const r = await fetch(base + '/api/auth/send-code', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ phoneNumber: fullPhone })
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Acas-User-Key': state.userKey
+              },
+              body: JSON.stringify({ phoneNumber: fullPhone, userKey: state.userKey })
             });
             const d = await r.json();
             res = r;
@@ -1325,8 +1530,11 @@
       try {
         const res = await fetch(API_BASE + '/api/auth/verify-code', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phoneNumber: phone, code })
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Acas-User-Key': state.userKey
+          },
+          body: JSON.stringify({ phoneNumber: phone, code, userKey: state.userKey })
         });
         const data = await res.json();
         if (data.status === '2fa_missing_blocked') {
@@ -1362,8 +1570,16 @@
       try {
         const res = await fetch(API_BASE + '/api/auth/verify-2fa', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phoneNumber: phone, password, enabledModules: state.enabledModules })
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Acas-User-Key': state.userKey
+          },
+          body: JSON.stringify({
+            phoneNumber: phone,
+            password,
+            enabledModules: state.enabledModules,
+            userKey: state.userKey
+          })
         });
         const data = await res.json();
         if (!res.ok || !data.ok) {
@@ -1384,6 +1600,314 @@
       if (Object.values(next).every(v => !v)) return;
       state.draftEnabledModules = next;
       renderProfileModal();
+    }
+
+    // =========================================================================
+    // ADMIN ANALYTICS & VISUALIZATION DASHBOARD (STRICTLY FOR ID: 8004724563)
+    // =========================================================================
+    async function openAdminStatsModal() {
+      if (!state.isAdmin) return;
+      document.getElementById('admin-stats-modal').classList.remove('hidden');
+      await refreshAdminStats();
+    }
+
+    function closeAdminStatsModal() {
+      if (state.adminAutoRefreshTimer) {
+        clearInterval(state.adminAutoRefreshTimer);
+        state.adminAutoRefreshTimer = null;
+      }
+      const autoBtn = document.getElementById('btn-admin-autorefresh');
+      if (autoBtn) {
+        autoBtn.textContent = 'Avto (10s): OFF';
+        autoBtn.style.backgroundColor = 'var(--surface-alt)';
+        autoBtn.style.borderColor = 'var(--border)';
+        autoBtn.style.color = 'var(--muted)';
+      }
+      const modal = document.getElementById('admin-stats-modal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function toggleAdminAutoRefresh() {
+      const autoBtn = document.getElementById('btn-admin-autorefresh');
+      if (state.adminAutoRefreshTimer) {
+        clearInterval(state.adminAutoRefreshTimer);
+        state.adminAutoRefreshTimer = null;
+        if (autoBtn) {
+          autoBtn.textContent = 'Avto (10s): OFF';
+          autoBtn.style.backgroundColor = 'var(--surface-alt)';
+          autoBtn.style.borderColor = 'var(--border)';
+          autoBtn.style.color = 'var(--muted)';
+        }
+      } else {
+        refreshAdminStats();
+        state.adminAutoRefreshTimer = setInterval(() => refreshAdminStats(), 10000);
+        if (autoBtn) {
+          autoBtn.textContent = 'Avto (10s): ON';
+          autoBtn.style.backgroundColor = 'var(--primary-soft)';
+          autoBtn.style.borderColor = 'var(--primary)';
+          autoBtn.style.color = 'var(--primary-text)';
+        }
+      }
+    }
+
+    function formatUptime(sec) {
+      const s = Math.max(0, Number(sec || 0));
+      const h = Math.floor(s / 3600);
+      const m = Math.floor((s % 3600) / 60);
+      if (h > 0) return `${h}s ${m}d`;
+      if (m > 0) return `${m} daq`;
+      return `${s} son`;
+    }
+
+    function formatTimeAgo(ts) {
+      if (!ts) return 'Hozir';
+      const diffSec = Math.max(0, Math.round((Date.now() - ts) / 1000));
+      if (diffSec < 60) return 'Hozirgina';
+      const m = Math.floor(diffSec / 60);
+      if (m < 60) return `${m} daq oldin`;
+      const h = Math.floor(m / 60);
+      if (h < 24) return `${h} soat oldin`;
+      return `${Math.floor(h / 24)} kun oldin`;
+    }
+
+    async function refreshAdminStats() {
+      if (!state.isAdmin) return;
+      const icon = document.getElementById('icon-admin-refresh');
+      if (icon) icon.classList.add('animate-spin');
+
+      try {
+        await resolveApiBase();
+        const res = await fetch(API_BASE + '/api/admin/stats', {
+          headers: {
+            'X-Acas-User-Key': state.userKey,
+            ...(state.clientSecret ? { 'X-Acas-Secret': state.clientSecret } : {}),
+            ...(state.sessionString ? { 'X-Acas-Session': state.sessionString } : {})
+          }
+        });
+        const data = await res.json();
+        if (res.ok && data.ok) {
+          state.adminStats = data;
+          const dt = new Date(data.generatedAt || Date.now());
+          const tStr = dt.toTimeString().slice(0, 8);
+          const lbl = document.getElementById('admin-last-updated');
+          if (lbl) lbl.textContent = `Oxirgi yangilanish: ${tStr} • Jonli ma’lumotlar`;
+          renderAdminStatsDashboard(data);
+        } else {
+          document.getElementById('admin-stats-body').innerHTML = `
+            <div class="p-6 rounded-xl border text-center" style="border-color:var(--border);color:var(--accent-rose);">
+              ${data.message || 'Statistikani yuklashda xatolik.'}
+            </div>`;
+        }
+      } catch (e) {
+        document.getElementById('admin-stats-body').innerHTML = `
+          <div class="p-6 rounded-xl border text-center" style="border-color:var(--border);color:var(--accent-rose);">
+            Server bilan aloqa yo‘q. Yangilash tugmasini qayta bosing.
+          </div>`;
+      } finally {
+        if (icon) icon.classList.remove('animate-spin');
+      }
+    }
+
+    function renderAdminStatsDashboard(data) {
+      const bodyEl = document.getElementById('admin-stats-body');
+      if (!bodyEl || !data) return;
+
+      const k = data.kpis || {};
+      const mods = data.moduleBreakdown || [];
+      const daily = data.dailySeries || [];
+      const topCh = data.topChannels || [];
+      const users = data.usersList || [];
+
+      // 1. Build 7-Day Activity SVG Chart
+      const maxDailyVal = Math.max(1, ...daily.map(d => Math.max(d.insightsFound || 0, d.scans || 0, d.activeUsers || 0)));
+      const svgBars = daily.map((d, idx) => {
+        const xBase = 24 + idx * 78;
+        const hUsers = Math.max(6, Math.round(((d.activeUsers || 0) / maxDailyVal) * 86));
+        const hScans = Math.max(6, Math.round(((d.scans || 0) / maxDailyVal) * 86));
+        const hInsights = Math.max(6, Math.round(((d.insightsFound || 0) / maxDailyVal) * 86));
+
+        const yUsers = 108 - hUsers;
+        const yScans = 108 - hScans;
+        const yInsights = 108 - hInsights;
+
+        return `
+          <g>
+            <!-- Users Bar -->
+            <rect x="${xBase}" y="${yUsers}" width="14" height="${hUsers}" rx="3" fill="var(--accent-emerald)" opacity="0.9" />
+            <text x="${xBase + 7}" y="${yUsers - 4}" text-anchor="middle" font-size="9" font-family="monospace" fill="var(--accent-emerald)">${d.activeUsers || 0}</text>
+            <!-- Scans Bar -->
+            <rect x="${xBase + 17}" y="${yScans}" width="14" height="${hScans}" rx="3" fill="var(--primary)" opacity="0.9" />
+            <text x="${xBase + 24}" y="${yScans - 4}" text-anchor="middle" font-size="9" font-family="monospace" fill="var(--primary-text)">${d.scans || 0}</text>
+            <!-- Insights Bar -->
+            <rect x="${xBase + 34}" y="${yInsights}" width="14" height="${hInsights}" rx="3" fill="var(--accent-amber)" opacity="0.9" />
+            <text x="${xBase + 41}" y="${yInsights - 4}" text-anchor="middle" font-size="9" font-family="monospace" fill="var(--accent-amber)">${d.insightsFound || 0}</text>
+            <!-- Day Label -->
+            <text x="${xBase + 24}" y="125" text-anchor="middle" font-size="9.5" fill="var(--muted)">${d.label}</text>
+          </g>
+        `;
+      }).join('');
+
+      // 2. Build 5 Module Distribution Bars
+      const modColors = {
+        events: 'var(--primary)',
+        conferences: 'var(--accent-emerald)',
+        volunteering: 'var(--accent-amber)',
+        scholarships: '#8B5CF6',
+        competitions: 'var(--accent-rose)'
+      };
+      const modsHtml = mods.map(m => {
+        const col = modColors[m.id] || 'var(--primary)';
+        return `
+          <div class="space-y-1">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-semibold">${m.title}</span>
+              <div class="flex items-center gap-2 font-mono text-[11px]">
+                <span style="color:var(--muted);">${m.enabledUsers} userda ON</span>
+                <strong style="color:var(--text);">${m.count} ta (${m.pct}%)</strong>
+              </div>
+            </div>
+            <div class="w-full h-2.5 rounded-full overflow-hidden" style="background-color:var(--surface-alt);">
+              <div class="h-full rounded-full transition-all duration-500" style="width:${Math.max(4, m.pct)}%;background-color:${col};"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // 3. Build Top Channels Leaderboard
+      const maxChCount = Math.max(1, ...(topCh.map(c => c.count || 0)));
+      const topChHtml = topCh.length > 0 ? topCh.map((c, i) => {
+        const barW = Math.max(6, Math.round((c.count / maxChCount) * 100));
+        return `
+          <div class="space-y-1">
+            <div class="flex items-center justify-between text-xs">
+              <div class="flex items-center gap-1.5 truncate pr-2">
+                <span class="font-mono text-[10px] px-1.5 py-0.5 rounded" style="background-color:var(--surface-alt);color:var(--muted);">#${i + 1}</span>
+                <span class="font-semibold truncate">${c.title}</span>
+                <span class="font-mono text-[10px] truncate" style="color:var(--primary-text);">@${c.handle}</span>
+              </div>
+              <span class="font-mono font-semibold shrink-0">${c.count} ta (${c.pct}%)</span>
+            </div>
+            <div class="w-full h-2 rounded-full overflow-hidden" style="background-color:var(--surface-alt);">
+              <div class="h-full rounded-full transition-all duration-500" style="width:${barW}%;background-color:var(--primary);"></div>
+            </div>
+          </div>
+        `;
+      }).join('') : `<div class="p-4 text-center" style="color:var(--muted);">Hozircha kanallar skanerlanmagan</div>`;
+
+      // 4. Build Connected Users Table
+      const usersHtml = users.length > 0 ? users.map(u => `
+        <tr class="border-t" style="border-color:var(--border);">
+          <td class="py-2 pr-2">
+            <div class="font-semibold flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full inline-block" style="background-color:${u.isOnline ? 'var(--accent-emerald)' : 'var(--muted)'};"></span>
+              <span>${u.firstName}</span>
+              ${u.isAdmin ? `<span class="text-[9px] font-mono px-1.5 py-0.5 rounded" style="background-color:var(--primary-soft);color:var(--primary-text);">ADMIN</span>` : ''}
+            </div>
+            <div class="text-[10px] font-mono" style="color:var(--muted);">
+              ${u.username ? '@' + u.username + ' • ' : ''}ID: ${u.telegramId || '—'}
+            </div>
+          </td>
+          <td class="py-2 px-2 font-mono text-[11px]">${u.phoneNumber || '—'}</td>
+          <td class="py-2 px-2 font-mono text-center">${u.channelsCount} / ${u.foldersCount}</td>
+          <td class="py-2 px-2 font-mono text-center font-semibold" style="color:var(--primary-text);">${u.insightsCount} ta</td>
+          <td class="py-2 pl-2 font-mono text-right text-[11px]" style="color:var(--muted);">
+            <div>${formatTimeAgo(u.updatedAt)}</div>
+            <div class="text-[10px]">${u.lastScanMs ? u.lastScanMs + 'ms' : '2FA Faol'}</div>
+          </td>
+        </tr>
+      `).join('') : `<tr><td colspan="5" class="py-4 text-center" style="color:var(--muted);">Foydalanuvchilar topilmadi</td></tr>`;
+
+      bodyEl.innerHTML = `
+        <!-- 4 PRIMARY KPI CARDS -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          <div class="p-3 rounded-xl border space-y-1" style="background-color:var(--surface-alt);border-color:var(--border);">
+            <div class="text-[11px] font-medium" style="color:var(--muted);">Foydalanuvchilar</div>
+            <div class="text-xl font-bold font-mono" style="color:var(--accent-emerald);">${k.totalConnectedUsers || 0}</div>
+            <div class="text-[10px] font-mono" style="color:var(--muted);">
+              ${k.onlineSessionsCount || 0} online • ${k.botVisitorsCount || 0} botda
+            </div>
+          </div>
+
+          <div class="p-3 rounded-xl border space-y-1" style="background-color:var(--surface-alt);border-color:var(--border);">
+            <div class="text-[11px] font-medium" style="color:var(--muted);">Ulangan Kanallar</div>
+            <div class="text-xl font-bold font-mono" style="color:var(--primary-text);">${k.totalChannels || 0}</div>
+            <div class="text-[10px] font-mono" style="color:var(--muted);">
+              24s faol: ${k.active24hUsers || 0} kishi
+            </div>
+          </div>
+
+          <div class="p-3 rounded-xl border space-y-1" style="background-color:var(--surface-alt);border-color:var(--border);">
+            <div class="text-[11px] font-medium" style="color:var(--muted);">O‘qilgan Xabarlar</div>
+            <div class="text-xl font-bold font-mono">${(k.totalMessagesScanned || 0).toLocaleString()}</div>
+            <div class="text-[10px] font-mono" style="color:var(--muted);">
+              ${k.totalScansRun || 0} skan • ~${k.avgScanSpeedMs || 0}ms
+            </div>
+          </div>
+
+          <div class="p-3 rounded-xl border space-y-1" style="background-color:var(--surface-alt);border-color:var(--border);">
+            <div class="text-[11px] font-medium" style="color:var(--muted);">Topilgan E’lonlar</div>
+            <div class="text-xl font-bold font-mono" style="color:var(--accent-amber);">${k.totalInsightsFound || 0}</div>
+            <div class="text-[10px] font-mono" style="color:var(--muted);">
+              Uptime: ${formatUptime(k.serverUptimeSec)} • ${k.memoryMb || 0}MB
+            </div>
+          </div>
+        </div>
+
+        <!-- 7-DAY SVG VISUALIZATION CHART -->
+        <div class="p-3.5 rounded-2xl border space-y-2" style="background-color:var(--surface);border-color:var(--border);">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="font-bold text-xs">7 Kunlik Faollik Dinamikasi (Vizual Grafik)</div>
+            <div class="flex items-center gap-3 text-[10px] font-mono">
+              <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm inline-block" style="background-color:var(--accent-emerald);"></span>Foydalanuvchi</span>
+              <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm inline-block" style="background-color:var(--primary);"></span>Skanlar</span>
+              <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm inline-block" style="background-color:var(--accent-amber);"></span>E’lonlar</span>
+            </div>
+          </div>
+          <div class="w-full overflow-x-auto no-scrollbar">
+            <svg viewBox="0 0 560 135" class="w-full min-w-[460px] h-32">
+              <line x1="16" y1="108" x2="545" y2="108" stroke="var(--border)" stroke-width="1" />
+              <line x1="16" y1="64" x2="545" y2="64" stroke="var(--border)" stroke-width="0.6" stroke-dasharray="3 3" />
+              <line x1="16" y1="22" x2="545" y2="22" stroke="var(--border)" stroke-width="0.6" stroke-dasharray="3 3" />
+              ${svgBars}
+            </svg>
+          </div>
+        </div>
+
+        <!-- 5 MODULES DISTRIBUTION & TOP CHANNELS (2-Column Visual Grid) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div class="p-3.5 rounded-2xl border space-y-2.5" style="background-color:var(--surface);border-color:var(--border);">
+            <div class="font-bold text-xs">5 ta Yo‘nalish bo‘yicha E’lonlar Taqsimoti</div>
+            <div class="space-y-2.5">${modsHtml}</div>
+          </div>
+
+          <div class="p-3.5 rounded-2xl border space-y-2.5" style="background-color:var(--surface);border-color:var(--border);">
+            <div class="font-bold text-xs">Eng Yuqori Natijali Top Kanallar</div>
+            <div class="space-y-2">${topChHtml}</div>
+          </div>
+        </div>
+
+        <!-- CONNECTED USERS TABLE -->
+        <div class="p-3.5 rounded-2xl border space-y-2" style="background-color:var(--surface);border-color:var(--border);">
+          <div class="flex items-center justify-between">
+            <div class="font-bold text-xs">Ulangan Foydalanuvchilar Ro‘yxati (${users.length} kishi)</div>
+            <span class="text-[10px] font-mono" style="color:var(--muted);">Real-vaqt MTProto holati</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="text-[10px] font-mono uppercase" style="color:var(--muted);">
+                  <th class="pb-1.5 pr-2">Foydalanuvchi</th>
+                  <th class="pb-1.5 px-2">Telefon</th>
+                  <th class="pb-1.5 px-2 text-center">Kanal / Papka</th>
+                  <th class="pb-1.5 px-2 text-center">E’lonlar</th>
+                  <th class="pb-1.5 pl-2 text-right">Faollik</th>
+                </tr>
+              </thead>
+              <tbody>${usersHtml}</tbody>
+            </table>
+          </div>
+        </div>
+      `;
     }
 
     // =========================================================================
