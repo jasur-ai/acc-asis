@@ -265,6 +265,7 @@
             type="tel"
             inputmode="numeric"
             autocomplete="tel-national"
+            maxlength="12"
             placeholder="91 777 86 33"
             onkeypress="return /[0-9]/.test(event.key)"
             oninput="onPhoneLocalInput(this)"
@@ -332,11 +333,11 @@
     </div>
   </div>
 
-  <!-- STEP 2: CLEAN, MINIMAL MAIN DASHBOARD (Mobile & Desktop Responsive) -->
-  <div id="screen-app" class="hidden max-w-4xl w-full mx-auto space-y-2.5 sm:space-y-3 pt-16 sm:pt-22 pb-10">
-    <div class="acas-surface p-2.5 sm:p-3.5 rounded-2xl border space-y-2.5">
-      <!-- Top Row: Search (Full width on mobile, inline on desktop) + Active Source Pill + Fast Sync Button -->
-      <div id="tour-search-sync" class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+  <!-- STEP 2: ULTRA-SIMPLE, CLEAN MAIN DASHBOARD (Default Light Mode) -->
+  <div id="screen-app" class="hidden max-w-4xl w-full mx-auto space-y-2.5 pt-16 sm:pt-20 pb-10">
+    <div class="acas-surface p-2.5 sm:p-3 rounded-2xl border space-y-2">
+      <!-- Line 1: Search + Compact Time Select + Fast Sync Button -->
+      <div id="tour-search-sync" class="flex items-center gap-1.5 sm:gap-2">
         <div class="relative flex-1 min-w-0">
           <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" style="color:var(--muted);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
@@ -345,54 +346,48 @@
             id="inp-search"
             oninput="renderFeed()"
             type="text"
-            placeholder="E’lonlar ichidan qidirish..."
-            class="w-full pl-9 pr-3 py-2 rounded-xl border text-xs focus:outline-none"
+            placeholder="Qidirish..."
+            class="w-full pl-9 pr-2.5 py-2 rounded-xl border text-xs focus:outline-none"
             style="background-color:var(--surface-alt);border-color:var(--border);color:var(--text);"
           />
         </div>
 
-        <div class="flex items-center gap-1.5 sm:gap-2">
-          <button
-            onclick="openProfileModal()"
-            title="O‘qilayotgan papka va kanallarni o‘zgartirish"
-            class="flex-1 sm:flex-initial inline-flex items-center justify-center sm:justify-start gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl border text-xs font-medium min-w-0 sm:max-w-[220px] truncate"
-            style="background-color:var(--surface-alt);border-color:var(--border);color:var(--text);"
-          >
-            <svg class="w-3.5 h-3.5 shrink-0" style="color:var(--primary-text);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-            </svg>
-            <span id="active-folder-summary" class="truncate">Barcha chatlar</span>
-          </button>
+        <select
+          id="sel-horizon"
+          onchange="setHorizon(this.value)"
+          class="px-2.5 py-2 rounded-xl border text-xs font-medium focus:outline-none cursor-pointer shrink-0"
+          style="background-color:var(--surface-alt);border-color:var(--border);color:var(--text);"
+        >
+          <option value="all" selected>Barcha vaqt</option>
+          <option value="1d">1 kun</option>
+          <option value="2-3d">2–3 kun</option>
+          <option value="1w">1 hafta</option>
+          <option value="1m">1 oy</option>
+          <option value="3-4m">3–4 oy</option>
+        </select>
 
-          <button
-            onclick="resyncSelectedFolders()"
-            id="btn-quick-sync"
-            class="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-white text-xs font-semibold shrink-0"
-            style="background-color:var(--primary);"
-          >
-            <svg id="icon-sync" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/>
-            </svg>
-            <span id="txt-quick-sync">Yangilash</span>
-          </button>
-        </div>
+        <button
+          onclick="resyncSelectedFolders()"
+          id="btn-quick-sync"
+          class="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-white text-xs font-semibold shrink-0"
+          style="background-color:var(--primary);"
+        >
+          <svg id="icon-sync" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/>
+          </svg>
+          <span id="txt-quick-sync">Yangilash</span>
+        </button>
       </div>
 
-      <!-- Connected Tree Filter: Swipeable on mobile, wrapped on desktop -->
-      <div id="tour-tree-filters" class="space-y-2 pt-1.5 border-t" style="border-color:var(--border);">
-        <div id="module-tabs" class="flex items-center gap-1.5 overflow-x-auto no-scrollbar sm:flex-wrap pb-0.5"></div>
-        <div id="connected-tree-branches" class="tree-branch space-y-1.5 pt-0.5"></div>
-        <div id="custom-slider-box" class="hidden tree-branch pt-1">
-          <div class="tree-node flex items-center gap-3 text-xs p-2 rounded-xl border" style="background-color:var(--surface-alt);border-color:var(--border);">
-            <span class="shrink-0">Kun: <strong id="custom-days-label" class="font-mono" style="color:var(--primary-text);">1 – 90 kun</strong></span>
-            <input id="inp-custom-days" type="range" min="1" max="150" value="90" oninput="updateCustomDays(this.value)" class="flex-1 min-w-0" />
-          </div>
-        </div>
+      <!-- Line 2: 5 Main Modules + Single Connected Sub-Branch ONLY when a specific module is active -->
+      <div id="tour-tree-filters" class="space-y-1.5">
+        <div id="module-tabs" class="flex items-center gap-1.5 overflow-x-auto no-scrollbar sm:flex-wrap"></div>
+        <div id="connected-tree-branches" class="hidden tree-branch pt-0.5"></div>
       </div>
     </div>
 
     <!-- Extracted Insights Feed -->
-    <div id="feed-container" class="space-y-2"></div>
+    <div id="feed-container" class="space-y-1.5"></div>
   </div>
 
   <!-- ANIMATED ONBOARDING TOUR OVERLAY (Strelkali Ko'rsatmalar) -->
@@ -696,10 +691,9 @@
     const STORAGE_KEY_PERM = `acas_permanent_auth_${CURRENT_USER_KEY}`;
     const STORAGE_KEY_CLOUD = `acas_cloud_auth_${CURRENT_USER_KEY}`;
 
-    // Legacy umumiy kalitni tozalaymiz (boshqa odamning hisobi chiqib qolmasligi uchun)
+    // Faqat eski dark mode keshini tozalaymiz — sessiya kalitlarini ASLO o'chirmaymiz!
     try {
-      localStorage.removeItem('acas_saved_session');
-      localStorage.removeItem('acas_permanent_auth');
+      localStorage.removeItem('acas_theme');
     } catch {}
 
     const ADMIN_TELEGRAM_ID = '8004724563';
@@ -716,54 +710,13 @@
       );
     }
 
-    // Har bir foydalanuvchi uchun unikal identifikator (Telegram User ID yoki qurilma UUID)
-    // Shunda har bir inson FAQAT o'zi kirgan hisobni ko'radi — boshqa birovning hisobi hech qachon chiqmaydi!
-    function getAcasUserKey() {
-      const tgUserId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
-      if (tgUserId) {
-        return `tg_${tgUserId}`;
-      }
-      let devId = localStorage.getItem('acas_device_uid_v2');
-      if (!devId) {
-        devId = `dev_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
-        localStorage.setItem('acas_device_uid_v2', devId);
-      }
-      return devId;
-    }
-
-    const CURRENT_USER_KEY = getAcasUserKey();
-    const STORAGE_KEY_SESSION = `acas_saved_session_${CURRENT_USER_KEY}`;
-    const STORAGE_KEY_PERM = `acas_permanent_auth_${CURRENT_USER_KEY}`;
-    const STORAGE_KEY_CLOUD = `acas_cloud_auth_${CURRENT_USER_KEY}`;
-
-    // Legacy umumiy kalitni tozalaymiz (boshqa odamning hisobi chiqib qolmasligi uchun)
-    try {
-      localStorage.removeItem('acas_saved_session');
-      localStorage.removeItem('acas_permanent_auth');
-    } catch {}
-
-    const ADMIN_TELEGRAM_ID = '8004724563';
-
-    function checkClientIsAdmin(sessionObj) {
-      const tgWebAppId = String(window.Telegram?.WebApp?.initDataUnsafe?.user?.id || '').trim();
-      const sessTgId = String(sessionObj?.telegramId || '').trim();
-      const keyId = String(CURRENT_USER_KEY || '').replace(/^tg_/, '').trim();
-      return (
-        tgWebAppId === ADMIN_TELEGRAM_ID ||
-        sessTgId === ADMIN_TELEGRAM_ID ||
-        keyId === ADMIN_TELEGRAM_ID ||
-        Boolean(sessionObj?.isAdmin)
-      );
-    }
-
+    // By default ALWAYS start in Light Mode (isDark: false)
     const state = {
-      isDark: localStorage.getItem('acas_theme') === 'dark',
+      isDark: false,
       userKey: CURRENT_USER_KEY,
       isAdmin: checkClientIsAdmin(null),
       adminStats: null,
       adminAutoRefreshTimer: null,
-      clientSecret: '',
-      userKey: CURRENT_USER_KEY,
       clientSecret: '',
       session: null,
       sessionString: '',
@@ -788,17 +741,15 @@
       items: []
     };
 
-    // Initialize saved theme on load
-    if (state.isDark) {
-      document.body.classList.replace('tg-light', 'tg-dark');
-      document.getElementById('icon-moon').classList.add('hidden');
-      document.getElementById('icon-sun').classList.remove('hidden');
-    }
+    // Ensure Light Mode classes on startup
+    document.body.classList.remove('tg-dark');
+    document.body.classList.add('tg-light');
+    document.getElementById('icon-moon').classList.remove('hidden');
+    document.getElementById('icon-sun').classList.add('hidden');
 
     // Smooth Optical Blur-Morph + 360 Spring Icon Rotation Theme Switch
     function toggleTheme() {
       state.isDark = !state.isDark;
-      localStorage.setItem('acas_theme', state.isDark ? 'dark' : 'light');
 
       const applySwitch = () => {
         document.body.classList.toggle('tg-dark', state.isDark);
@@ -969,39 +920,38 @@
     }
 
     function loadBestLocalCachedSession() {
-      for (const k of [STORAGE_KEY_SESSION, STORAGE_KEY_PERM]) {
+      for (const k of [STORAGE_KEY_SESSION, STORAGE_KEY_PERM, 'acas_saved_session', 'acas_permanent_auth']) {
         const raw = localStorage.getItem(k);
         if (raw) {
           try {
             const p = JSON.parse(raw);
-            if (p && p.userKey === state.userKey && (p.sessionString || p.session)) return p;
+            if (p && (p.sessionString || p.session)) return p;
           } catch {}
         }
       }
       return null;
     }
 
-    // Har bir foydalanuvchining o'z kirgan hisobi (userKey bo'yicha) tekshiriladi va saqlanadi!
+    // Har bir foydalanuvchining o'z kirgan hisobi (userKey bo'yicha) tekshiriladi va HECH QACHON auto-logout qilinmaydi!
     async function checkExistingSession() {
       let cachedParsed = loadBestLocalCachedSession();
       if (!cachedParsed || !cachedParsed.sessionString) {
-        const cloudSaved = await readTelegramCloudStorage(STORAGE_KEY_CLOUD);
-        if (cloudSaved && cloudSaved.userKey === state.userKey && (cloudSaved.sessionString || cloudSaved.session)) {
+        const cloudSaved =
+          (await readTelegramCloudStorage(STORAGE_KEY_CLOUD)) ||
+          (await readTelegramCloudStorage('acas_cloud_auth'));
+        if (cloudSaved && (cloudSaved.sessionString || cloudSaved.session)) {
           cachedParsed = { ...(cachedParsed || {}), ...cloudSaved };
         }
       }
 
-      // 1. Agar AYNAN SHU foydalanuvchining o'z saqlangan sessiyasi bo'lsa — darhol ochamiz
+      // 1. Agar brauzerda yoki Telegram CloudStorage'da saqlangan sessiya bo'lsa — darhol ochamiz
       let alreadyActivated = false;
-      if (cachedParsed && cachedParsed.session && cachedParsed.sessionString) {
+      if (cachedParsed && cachedParsed.session) {
         activateAuthenticatedView(cachedParsed, true);
         alreadyActivated = true;
-      } else {
-        // Yangi foydalanuvchi bo'lsa — Login oynasi ko'rinadi
-        return;
       }
 
-      // 2. Orqa fonda shu foydalanuvchining sessiyasini server bilan sinxronlaymiz
+      // 2. Har doim serverdan ham (/api/auth/session) tekshiramiz — brauzer keshi bo'sh bo'lsa ham serverdagi sessiya tiklanadi!
       await resolveApiBase();
       try {
         const res = await fetch(API_BASE + '/api/auth/session', {
@@ -1098,7 +1048,10 @@
       } catch {}
       localStorage.removeItem(STORAGE_KEY_SESSION);
       localStorage.removeItem(STORAGE_KEY_PERM);
+      localStorage.removeItem('acas_saved_session');
+      localStorage.removeItem('acas_permanent_auth');
       removeTelegramCloudStorage(STORAGE_KEY_CLOUD);
+      removeTelegramCloudStorage('acas_cloud_auth');
       state.session = null;
       state.sessionString = '';
       state.clientSecret = '';
@@ -1195,6 +1148,7 @@
         insights: state.items
       };
       localStorage.setItem(STORAGE_KEY_SESSION, JSON.stringify(fullPayload));
+      localStorage.setItem('acas_saved_session', JSON.stringify(fullPayload));
       if (state.sessionString) {
         const coreAuth = {
           userKey: state.userKey,
@@ -1205,7 +1159,9 @@
           enabledModules: state.enabledModules
         };
         localStorage.setItem(STORAGE_KEY_PERM, JSON.stringify(coreAuth));
+        localStorage.setItem('acas_permanent_auth', JSON.stringify(coreAuth));
         writeTelegramCloudStorage(STORAGE_KEY_CLOUD, coreAuth);
+        writeTelegramCloudStorage('acas_cloud_auth', coreAuth);
       }
     }
 
@@ -1420,14 +1376,17 @@
       const meta = getSelectedCountryMeta();
       const inp = document.getElementById('inp-phone-local');
       inp.placeholder = meta.placeholder;
+      inp.maxLength = meta.placeholder.length;
       onPhoneLocalInput(inp);
       inp.focus();
     }
 
     function onPhoneLocalInput(inp) {
+      if (!inp) return;
       const meta = getSelectedCountryMeta();
+      inp.maxLength = meta.placeholder.length;
       const codeDigits = meta.code.replace(/\D/g, '');
-      let rawDigits = inp.value.replace(/\D/g, '');
+      let rawDigits = String(inp.value || '').replace(/\D/g, '');
       if (rawDigits.length > meta.maxDigits && rawDigits.startsWith(codeDigits)) {
         rawDigits = rawDigits.slice(codeDigits.length);
       }
@@ -1930,7 +1889,7 @@
         desc: '5 ta asosiy yo‘nalishdan birini tanlang — uning ostida bog‘langan ichki shoxobcha va vaqt oralig‘i (1 kun, 1 hafta, 1 oy) ochiladi.'
       },
       {
-        targetId: 'feed-container',
+        targetId: 'tour-feed-top4',
         title: 'Londa Panoramik E’lonlar',
         desc: 'Har bir qatorda faqat asosiy faktlar va qolgan kun ko‘rinadi. Xohlagan e’lon ustiga bossangiz, Telegramdagi original postga o‘tadi.'
       }
@@ -1941,10 +1900,13 @@
         const el = document.getElementById(s.targetId);
         if (el) el.classList.remove('tour-highlight-target');
       });
+      const fallbackFeed = document.getElementById('feed-container');
+      if (fallbackFeed) fallbackFeed.classList.remove('tour-highlight-target');
     }
 
     function startOnboardingTour(manual = false) {
       if (!manual && localStorage.getItem('acas_tour_v1_done')) return;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       state.tourStep = 0;
       state.tourActive = true;
       document.getElementById('onboarding-tour-overlay').classList.remove('hidden');
@@ -1956,7 +1918,7 @@
       const step = TOUR_STEPS[state.tourStep];
       if (!step) return closeOnboardingTour();
 
-      const target = document.getElementById(step.targetId);
+      const target = document.getElementById(step.targetId) || document.getElementById('feed-container');
       const pop = document.getElementById('tour-popover');
       const arrowTop = document.getElementById('tour-arrow-top');
 
@@ -1970,15 +1932,16 @@
       if (target && pop) {
         target.classList.add('tour-highlight-target');
         const rect = target.getBoundingClientRect();
-        const popW = Math.min(340, window.innerWidth - 24);
-        const topPos = Math.min(window.innerHeight - 230, Math.max(64, rect.bottom + 10));
+        // Agar target balandligi 240px dan katta bo'lsa ham, ko'rsatma kartasini ekranning o'rtasidan pastga tushirib yubormaymiz
+        const clampedBottom = Math.min(rect.bottom, rect.top + 220);
+        const popW = Math.min(330, window.innerWidth - 24);
+        const topPos = Math.min(window.innerHeight - 210, Math.max(64, clampedBottom + 8));
         let leftPos = rect.left + rect.width / 2 - popW / 2;
         leftPos = Math.max(12, Math.min(window.innerWidth - popW - 12, leftPos));
 
         pop.style.top = `${topPos}px`;
         pop.style.left = `${leftPos}px`;
 
-        // Strelkani aynan belgilangan tugma markaziga yo'naltiramiz
         const arrowCenter = Math.max(24, Math.min(popW - 36, rect.left + rect.width / 2 - leftPos - 16));
         arrowTop.style.justifyContent = 'flex-start';
         arrowTop.style.paddingLeft = `${arrowCenter}px`;
@@ -2014,14 +1977,15 @@
     });
 
     /**
-     * Connected Hierarchical Tree Filter Renderer
+     * Ultra-Simple Connected Tree Filter Renderer
+     * Only shows a sub-branch when a specific module is selected (keeps "Barchasi" 100% clean!)
      */
     function renderTreeFilters() {
       const activeItems = state.items.filter(i => state.enabledModules[i.moduleId]);
       const tabsEl = document.getElementById('module-tabs');
 
       const allBtn = `
-        <button onclick="setTab('all')" class="px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap border" style="background-color:${state.activeTab === 'all' ? 'var(--primary)' : 'var(--surface-alt)'};color:${state.activeTab === 'all' ? '#FFF' : 'var(--text)'};border-color:var(--border);">
+        <button onclick="setTab('all')" class="px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap border" style="background-color:${state.activeTab === 'all' ? 'var(--primary)' : 'var(--surface-alt)'};color:${state.activeTab === 'all' ? '#FFF' : 'var(--text)'};border-color:${state.activeTab === 'all' ? 'var(--primary)' : 'var(--border)'};">
           Barchasi (${activeItems.length})
         </button>
       `;
@@ -2029,87 +1993,73 @@
         const cnt = state.items.filter(i => i.moduleId === m.id).length;
         const sel = state.activeTab === m.id;
         return `
-          <button onclick="setTab('${m.id}')" class="px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap border" style="background-color:${sel ? 'var(--primary)' : 'var(--surface-alt)'};color:${sel ? '#FFF' : 'var(--text)'};border-color:var(--border);">
+          <button onclick="setTab('${m.id}')" class="px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap border" style="background-color:${sel ? 'var(--primary)' : 'var(--surface-alt)'};color:${sel ? '#FFF' : 'var(--text)'};border-color:${sel ? 'var(--primary)' : 'var(--border)'};">
             ${m.shortTitle} (${cnt})
           </button>
         `;
       }).join('');
       tabsEl.innerHTML = allBtn + modBtns;
 
-      // Build Connected Child Tree Nodes based on selected Root Branch!
-      const treeEl = document.getElementById('connected-tree-branches');
-      const branches = [];
-
-      // Child Branch 1: Module-specific sub-tree
-      if (state.activeTab === 'events' && state.enabledModules.events) {
-        const cats = ['Barchasi', 'Zakovat', 'Debate', 'Seminar', 'Tadbir'];
-        branches.push(`
-          <div class="tree-node flex flex-wrap items-center gap-1.5 text-xs">
-            <span class="font-medium mr-1" style="color:var(--muted);">Tadbir turi</span>
-            ${cats.map(c => `
-              <button onclick="setEventCat('${c}')" class="px-2.5 py-1 rounded-lg border text-xs" style="background-color:${state.eventCat === c ? 'var(--primary-soft)' : 'var(--surface-alt)'};border-color:${state.eventCat === c ? 'var(--primary)' : 'var(--border)'};color:${state.eventCat === c ? 'var(--primary-text)' : 'var(--muted)'};font-weight:${state.eventCat === c ? '600' : '400'};">${c}</button>
-            `).join('')}
-          </div>
-        `);
-      } else if (state.activeTab === 'conferences' && state.enabledModules.conferences) {
-        branches.push(`
-          <div class="tree-node flex flex-wrap items-center gap-1.5 text-xs">
-            <span class="font-medium mr-1" style="color:var(--muted);">Nashr shakli</span>
-            ${['Barchasi', 'Maqola', 'Tezis', 'Avtoreferat'].map(fm => `
-              <button onclick="setConfFormat('${fm}')" class="px-2.5 py-1 rounded-lg border text-xs" style="background-color:${state.confFormat === fm ? 'var(--primary-soft)' : 'var(--surface-alt)'};border-color:${state.confFormat === fm ? 'var(--primary)' : 'var(--border)'};color:${state.confFormat === fm ? 'var(--primary-text)' : 'var(--muted)'};font-weight:${state.confFormat === fm ? '600' : '400'};">${fm}</button>
-            `).join('')}
-          </div>
-          <div class="tree-node flex flex-wrap items-center gap-1.5 text-xs">
-            <span class="font-medium mr-1" style="color:var(--muted);">Qamrov va To‘lov</span>
-            ${['Barchasi', 'Mahalliy', 'Mintaqaviy (Osiyo)', 'Xalqaro'].map(sc => `
-              <button onclick="setConfScope('${sc}')" class="px-2.5 py-1 rounded-lg border text-xs" style="background-color:${state.confScope === sc ? 'var(--primary-soft)' : 'var(--surface-alt)'};border-color:${state.confScope === sc ? 'var(--primary)' : 'var(--border)'};color:${state.confScope === sc ? 'var(--primary-text)' : 'var(--muted)'};font-weight:${state.confScope === sc ? '600' : '400'};">${sc}</button>
-            `).join('')}
-            ${['Barchasi', 'Tekin', 'Pulli'].map(f => `
-              <button onclick="setConfFee('${f}')" class="px-2.5 py-1 rounded-lg border text-xs" style="background-color:${state.confFee === f ? 'var(--primary-soft)' : 'var(--surface-alt)'};border-color:${state.confFee === f ? 'var(--primary)' : 'var(--border)'};color:${state.confFee === f ? 'var(--primary-text)' : 'var(--muted)'};font-weight:${state.confFee === f ? '600' : '400'};">${f}</button>
-            `).join('')}
-          </div>
-        `);
-      } else if (state.activeTab === 'scholarships' && state.enabledModules.scholarships) {
-        branches.push(`
-          <div class="tree-node flex flex-wrap items-center gap-1.5 text-xs">
-            <span class="font-medium mr-1" style="color:var(--muted);">Dastur turi</span>
-            ${['Barchasi', 'Exchange', 'Stipendiya', 'Grant'].map(st => `
-              <button onclick="setSchType('${st}')" class="px-2.5 py-1 rounded-lg border text-xs" style="background-color:${state.schType === st ? 'var(--primary-soft)' : 'var(--surface-alt)'};border-color:${state.schType === st ? 'var(--primary)' : 'var(--border)'};color:${state.schType === st ? 'var(--primary-text)' : 'var(--muted)'};font-weight:${state.schType === st ? '600' : '400'};">${st}</button>
-            `).join('')}
-          </div>
-        `);
-      } else if (state.activeTab === 'competitions' && state.enabledModules.competitions) {
-        branches.push(`
-          <div class="tree-node flex flex-wrap items-center gap-1.5 text-xs">
-            <span class="font-medium mr-1" style="color:var(--muted);">Bosqich</span>
-            ${['Barchasi', 'Universitet bosqichi', 'Respublika bosqichi'].map(cs => `
-              <button onclick="setCompStage('${cs}')" class="px-2.5 py-1 rounded-lg border text-xs" style="background-color:${state.compStage === cs ? 'var(--primary-soft)' : 'var(--surface-alt)'};border-color:${state.compStage === cs ? 'var(--primary)' : 'var(--border)'};color:${state.compStage === cs ? 'var(--primary-text)' : 'var(--muted)'};font-weight:${state.compStage === cs ? '600' : '400'};">${cs}</button>
-            `).join('')}
-          </div>
-        `);
+      const selHorizon = document.getElementById('sel-horizon');
+      if (selHorizon && selHorizon.value !== state.horizon) {
+        selHorizon.value = state.horizon;
       }
 
-      // Child Branch 2: Time Horizon leaf connected to the active root
-      const horizons = [
-        { id: 'all', label: 'Barcha vaqt' },
-        { id: '1d', label: '1 kun' },
-        { id: '2-3d', label: '2–3 kun' },
-        { id: '1w', label: '1 hafta' },
-        { id: '1m', label: '1 oy' },
-        { id: '3-4m', label: '3–4 oy' },
-        { id: 'custom', label: 'Kunni moslash' }
-      ];
-      branches.push(`
-        <div class="tree-node flex flex-wrap items-center gap-1.5 text-xs">
-          <span class="font-medium mr-1" style="color:var(--muted);">Vaqt oralig‘i</span>
-          ${horizons.map(h => `
-            <button onclick="setHorizon('${h.id}')" class="px-2.5 py-1 rounded-lg border text-xs whitespace-nowrap" style="background-color:${state.horizon === h.id ? 'var(--primary-soft)' : 'var(--surface-alt)'};border-color:${state.horizon === h.id ? 'var(--primary)' : 'var(--border)'};color:${state.horizon === h.id ? 'var(--primary-text)' : 'var(--muted)'};font-weight:${state.horizon === h.id ? '600' : '400'};">${h.label}</button>
-          `).join('')}
-        </div>
-      `);
+      const treeEl = document.getElementById('connected-tree-branches');
+      let subHtml = '';
 
-      treeEl.innerHTML = branches.join('');
-      document.getElementById('custom-slider-box').classList.toggle('hidden', state.horizon !== 'custom');
+      if (state.activeTab === 'events' && state.enabledModules.events) {
+        const cats = ['Barchasi', 'Zakovat', 'Debate', 'Seminar', 'Tadbir'];
+        subHtml = `
+          <div class="tree-node flex items-center gap-1.5 overflow-x-auto no-scrollbar text-xs">
+            ${cats.map(c => `
+              <button onclick="setEventCat('${c}')" class="px-2.5 py-1 rounded-lg border text-xs whitespace-nowrap" style="background-color:${state.eventCat === c ? 'var(--primary-soft)' : 'var(--surface-alt)'};border-color:${state.eventCat === c ? 'var(--primary)' : 'var(--border)'};color:${state.eventCat === c ? 'var(--primary-text)' : 'var(--muted)'};font-weight:${state.eventCat === c ? '600' : '400'};">${c}</button>
+            `).join('')}
+          </div>
+        `;
+      } else if (state.activeTab === 'conferences' && state.enabledModules.conferences) {
+        subHtml = `
+          <div class="tree-node flex items-center gap-1.5 overflow-x-auto no-scrollbar text-xs">
+            ${['Barchasi', 'Maqola', 'Tezis', 'Avtoreferat'].map(fm => `
+              <button onclick="setConfFormat('${fm}')" class="px-2.5 py-1 rounded-lg border text-xs whitespace-nowrap" style="background-color:${state.confFormat === fm ? 'var(--primary-soft)' : 'var(--surface-alt)'};border-color:${state.confFormat === fm ? 'var(--primary)' : 'var(--border)'};color:${state.confFormat === fm ? 'var(--primary-text)' : 'var(--muted)'};font-weight:${state.confFormat === fm ? '600' : '400'};">${fm}</button>
+            `).join('')}
+            <span style="color:var(--border);">|</span>
+            ${['Xalqaro', 'Mahalliy'].map(sc => {
+              const active = state.confScope === sc;
+              return `<button onclick="setConfScope('${active ? 'Barchasi' : sc}')" class="px-2.5 py-1 rounded-lg border text-xs whitespace-nowrap" style="background-color:${active ? 'var(--primary-soft)' : 'var(--surface-alt)'};border-color:${active ? 'var(--primary)' : 'var(--border)'};color:${active ? 'var(--primary-text)' : 'var(--muted)'};font-weight:${active ? '600' : '400'};">${sc}</button>`;
+            }).join('')}
+            <span style="color:var(--border);">|</span>
+            ${['Tekin', 'Pulli'].map(f => {
+              const active = state.confFee === f;
+              return `<button onclick="setConfFee('${active ? 'Barchasi' : f}')" class="px-2.5 py-1 rounded-lg border text-xs whitespace-nowrap" style="background-color:${active ? 'var(--primary-soft)' : 'var(--surface-alt)'};border-color:${active ? 'var(--primary)' : 'var(--border)'};color:${active ? 'var(--primary-text)' : 'var(--muted)'};font-weight:${active ? '600' : '400'};">${f}</button>`;
+            }).join('')}
+          </div>
+        `;
+      } else if (state.activeTab === 'scholarships' && state.enabledModules.scholarships) {
+        subHtml = `
+          <div class="tree-node flex items-center gap-1.5 overflow-x-auto no-scrollbar text-xs">
+            ${['Barchasi', 'Exchange', 'Stipendiya', 'Grant'].map(st => `
+              <button onclick="setSchType('${st}')" class="px-2.5 py-1 rounded-lg border text-xs whitespace-nowrap" style="background-color:${state.schType === st ? 'var(--primary-soft)' : 'var(--surface-alt)'};border-color:${state.schType === st ? 'var(--primary)' : 'var(--border)'};color:${state.schType === st ? 'var(--primary-text)' : 'var(--muted)'};font-weight:${state.schType === st ? '600' : '400'};">${st}</button>
+            `).join('')}
+          </div>
+        `;
+      } else if (state.activeTab === 'competitions' && state.enabledModules.competitions) {
+        subHtml = `
+          <div class="tree-node flex items-center gap-1.5 overflow-x-auto no-scrollbar text-xs">
+            ${['Barchasi', 'Universitet bosqichi', 'Respublika bosqichi'].map(cs => `
+              <button onclick="setCompStage('${cs}')" class="px-2.5 py-1 rounded-lg border text-xs whitespace-nowrap" style="background-color:${state.compStage === cs ? 'var(--primary-soft)' : 'var(--surface-alt)'};border-color:${state.compStage === cs ? 'var(--primary)' : 'var(--border)'};color:${state.compStage === cs ? 'var(--primary-text)' : 'var(--muted)'};font-weight:${state.compStage === cs ? '600' : '400'};">${cs}</button>
+            `).join('')}
+          </div>
+        `;
+      }
+
+      if (subHtml) {
+        treeEl.innerHTML = subHtml;
+        treeEl.classList.remove('hidden');
+      } else {
+        treeEl.innerHTML = '';
+        treeEl.classList.add('hidden');
+      }
     }
 
     function setTab(t) { state.activeTab = t; renderAll(); }
@@ -2162,14 +2112,15 @@
       const container = document.getElementById('feed-container');
       if (filtered.length === 0) {
         container.innerHTML = `
-          <div class="acas-surface p-8 rounded-2xl border text-center space-y-1 text-xs" style="color:var(--muted);">
+          <div id="tour-feed-top4" class="acas-surface p-8 rounded-2xl border text-center space-y-1 text-xs" style="color:var(--muted);">
             <div class="font-semibold text-sm" style="color:var(--text);">Mos e’lon topilmadi</div>
-            <div>Agent faqat haqiqiy e’lonlarni (sana yoki ro‘yxatdan o‘tish havolasi bor, muddati o‘tmagan) qoldiradi. "Chatlarni Yangilash"ni bosing yoki boshqa papka tanlang.</div>
+            <div>Agent faqat haqiqiy e’lonlarni (sana yoki ro‘yxatdan o‘tish havolasi bor, muddati o‘tmagan) qoldiradi. "Yangilash"ni bosing yoki boshqa papka tanlang.</div>
           </div>`;
+        if (state.tourActive && state.tourStep === 3) renderOnboardingStep();
         return;
       }
 
-      container.innerHTML = filtered.map(item => {
+      const renderRowHtml = (item) => {
         let facts = '';
         if (item.moduleId === 'events') {
           facts = factChip(SVG_ICONS.calendar, item.dateFormatted) + factChip(SVG_ICONS.pin, item.location) + factChip(SVG_ICONS.building, item.organizer);
@@ -2215,7 +2166,13 @@
               <div class="text-[10px] font-mono truncate max-w-[110px]" style="color:var(--primary-text);">@${item.channelHandle}</div>
             </div>
           </a>`;
-      }).join('');
+      };
+
+      // 4-ko'rsatma (Tour Step 4) butun uzun ro'yxatni emas, faqat boshlang'ich 4 ta e'lonni ajratib ko'rsatishi uchun:
+      const firstFourHtml = filtered.slice(0, 4).map(renderRowHtml).join('');
+      const restHtml = filtered.slice(4).map(renderRowHtml).join('');
+      container.innerHTML = `<div id="tour-feed-top4" class="space-y-1.5">${firstFourHtml}</div>${restHtml}`;
+      if (state.tourActive && state.tourStep === 3) renderOnboardingStep();
     }
 
     function renderFeedLegacy() {
