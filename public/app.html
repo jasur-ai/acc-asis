@@ -2,7 +2,7 @@
 <html lang="uz">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>acc.asis — Telegram Insight Agent</title>
   <link rel="icon" type="image/svg+xml" href="/acas-logo.svg" />
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -51,11 +51,36 @@
     }
 
     body {
+      overflow-x: hidden;
+      -webkit-tap-highlight-color: transparent;
+      padding-bottom: env(safe-area-inset-bottom, 12px);
       transition:
         background-color 340ms cubic-bezier(0.22, 1, 0.36, 1),
         color 280ms cubic-bezier(0.22, 1, 0.36, 1),
         filter 260ms ease,
         transform 280ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    /* Hide horizontal scrollbar on mobile swipeable tabs */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    @media (max-width: 639px) {
+      .tree-branch {
+        padding-left: 13px;
+      }
+      .tree-branch::before {
+        left: 3px;
+      }
+      .tree-node::before {
+        left: -10px;
+        width: 7px;
+      }
     }
 
     body.theme-morphing {
@@ -110,55 +135,90 @@
       height: 1.5px;
       background-color: var(--border);
     }
+
+    /* Animated Onboarding Tour Spotlight & Bouncing Arrow */
+    @keyframes acasArrowBounceUp {
+      0%, 100% { transform: translateY(0) scale(1); }
+      50% { transform: translateY(-9px) scale(1.05); }
+    }
+    @keyframes acasPulseRing {
+      0%, 100% { box-shadow: 0 0 0 3px var(--primary), 0 0 0 7px rgba(58, 130, 214, 0.22); }
+      50% { box-shadow: 0 0 0 4px var(--primary), 0 0 0 13px rgba(58, 130, 214, 0.08); }
+    }
+    .tour-arrow-up {
+      animation: acasArrowBounceUp 1.15s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
+    }
+    .tour-highlight-target {
+      position: relative;
+      z-index: 65 !important;
+      border-radius: 16px;
+      animation: acasPulseRing 1.6s ease-in-out infinite;
+    }
   </style>
 </head>
-<body class="tg-light antialiased min-h-screen m-0 p-4 flex flex-col" style="background-color:var(--bg);color:var(--text);">
+<body class="tg-light antialiased min-h-[100dvh] m-0 px-2.5 py-3 sm:p-4 flex flex-col" style="background-color:var(--bg);color:var(--text);">
 
-  <!-- TOP-LEFT BRAND MARK: Logo on top, acc.asis tightly below it -->
-  <div class="fixed top-3 left-7 sm:left-10 z-40 flex flex-col items-center select-none">
-    <img src="/acas-logo.svg" alt="acc.asis" class="w-14 h-14" />
-    <span class="-mt-0.5 text-sm sm:text-base font-bold tracking-tight leading-none">
-      acc<span style="color:var(--primary-text)">.</span>asis
-    </span>
-  </div>
-
-  <!-- TOP-RIGHT CONTROLS: "Profil" Button (visible when logged in) + Smooth Icon-Only Theme Toggle -->
-  <div class="fixed top-4 right-5 sm:right-8 z-40 flex items-center gap-2">
-    <button
-      id="btn-open-profile"
-      onclick="toggleProfileModal()"
-      class="hidden items-center gap-2 px-3 py-2 rounded-xl border text-xs font-semibold shadow-sm hover:opacity-95"
-      style="background-color:var(--surface);border-color:var(--border);color:var(--text);"
-    >
-      <svg class="w-4 h-4" style="color:var(--primary-text);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-      </svg>
-      <span id="profile-btn-label">Profil</span>
-    </button>
-
-    <button
-      onclick="toggleTheme()"
-      id="btn-theme"
-      aria-label="Mavzuni almashtirish"
-      class="w-9 h-9 rounded-xl border flex items-center justify-center shadow-sm hover:opacity-90"
-      style="background-color:var(--surface);border-color:var(--border);color:var(--text);"
-    >
-      <span id="theme-icon-wrap" class="inline-flex items-center justify-center">
-        <svg id="icon-moon" class="w-4 h-4" style="color:var(--primary-text);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
-        </svg>
-        <svg id="icon-sun" class="w-4 h-4 hidden" style="color:var(--accent-amber);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>
-        </svg>
+  <!-- RESPONSIVE TOP BAR: Fits phone screens (320px+) and desktop cleanly without overlapping content on scroll -->
+  <header class="fixed top-0 inset-x-0 z-40 px-3 sm:px-8 py-2 flex items-center justify-between pointer-events-none" style="background:linear-gradient(to bottom, var(--bg) 75%, transparent);">
+    <!-- TOP-LEFT BRAND MARK: Logo on top, acc.asis tightly below it -->
+    <div class="pointer-events-auto flex flex-col items-center select-none pl-1 sm:pl-2">
+      <img src="/acas-logo.svg" alt="acc.asis" class="w-10 h-10 sm:w-14 sm:h-14" />
+      <span class="-mt-0.5 text-xs sm:text-base font-bold tracking-tight leading-none">
+        acc<span style="color:var(--primary-text)">.</span>asis
       </span>
-    </button>
-  </div>
+    </div>
 
-  <!-- STEP 1: CLEAN LOGIN CARD (Skipped automatically if session is already logged in!) -->
-  <div id="screen-auth" class="w-full max-w-sm mx-auto my-auto pb-10">
-    <div class="acas-surface rounded-2xl border p-6 space-y-4">
+    <!-- TOP-RIGHT CONTROLS: "?" Tour Guide + "Profil" Button + Smooth Icon-Only Theme Toggle -->
+    <div class="pointer-events-auto flex items-center gap-1.5 sm:gap-2">
+      <button
+        id="btn-tour-help"
+        onclick="startOnboardingTour(true)"
+        title="Interfeys bo‘yicha ko‘rsatma"
+        aria-label="Ko‘rsatma"
+        class="hidden w-8 h-8 sm:w-9 sm:h-9 rounded-xl border items-center justify-center shadow-sm hover:opacity-90 text-xs font-bold"
+        style="background-color:var(--surface);border-color:var(--border);color:var(--primary-text);"
+      >
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" x2="12.01" y1="17" y2="17"/>
+        </svg>
+      </button>
+
+      <button
+        id="btn-open-profile"
+        onclick="openProfileModal()"
+        class="hidden items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl border text-xs font-semibold shadow-sm hover:opacity-95 max-w-[135px] sm:max-w-none"
+        style="background-color:var(--surface);border-color:var(--border);color:var(--text);"
+      >
+        <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" style="color:var(--primary-text);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+        </svg>
+        <span id="profile-btn-label" class="truncate">Profil</span>
+      </button>
+
+      <button
+        onclick="toggleTheme()"
+        id="btn-theme"
+        aria-label="Mavzuni almashtirish"
+        class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl border flex items-center justify-center shadow-sm hover:opacity-90 shrink-0"
+        style="background-color:var(--surface);border-color:var(--border);color:var(--text);"
+      >
+        <span id="theme-icon-wrap" class="inline-flex items-center justify-center">
+          <svg id="icon-moon" class="w-4 h-4" style="color:var(--primary-text);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
+          </svg>
+          <svg id="icon-sun" class="w-4 h-4 hidden" style="color:var(--accent-amber);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>
+          </svg>
+        </span>
+      </button>
+    </div>
+  </header>
+
+  <!-- STEP 1: CLEAN LOGIN CARD (Mobile & Desktop Responsive) -->
+  <div id="screen-auth" class="w-full max-w-sm mx-auto my-auto pt-16 pb-8 px-1">
+    <div class="acas-surface rounded-2xl border p-4 sm:p-6 space-y-4">
       <div class="text-center space-y-1">
-        <h2 id="auth-title" class="text-base font-semibold">Telefon raqamingizni kiriting</h2>
+        <h2 id="auth-title" class="text-sm sm:text-base font-semibold">Telefon raqamingizni kiriting</h2>
         <p id="auth-subtitle" class="text-xs leading-relaxed" style="color:var(--muted);">
           Davlatingiz kodini tanlang va Telegram raqamingizni kiriting.
         </p>
@@ -168,11 +228,11 @@
 
       <!-- 1. ONLY Phone Input: [ UZB +998 ] [ 91 777 86 33 ] -->
       <div id="auth-box-1" class="space-y-3.5">
-        <div class="flex items-stretch gap-2">
+        <div class="flex items-stretch gap-1.5 sm:gap-2 w-full">
           <select
             id="sel-country"
             onchange="onCountryChange()"
-            class="px-3 py-2.5 rounded-xl border text-xs font-mono font-bold focus:outline-none cursor-pointer shrink-0"
+            class="px-2 sm:px-3 py-2.5 rounded-xl border text-xs font-mono font-bold focus:outline-none cursor-pointer shrink-0"
             style="background-color:var(--primary-soft);border-color:var(--primary);color:var(--primary-text);"
           >
             <option value="UZB" data-code="+998" data-placeholder="91 777 86 33" data-max="9" selected>UZB +998</option>
@@ -196,7 +256,7 @@
             onkeypress="return /[0-9]/.test(event.key)"
             oninput="onPhoneLocalInput(this)"
             onkeydown="if(event.key==='Enter'){event.preventDefault();sendCode();}"
-            class="flex-1 px-3.5 py-2.5 rounded-xl border text-base font-mono tracking-wider focus:outline-none"
+            class="min-w-0 flex-1 w-full px-2.5 sm:px-3.5 py-2.5 rounded-xl border text-sm sm:text-base font-mono tracking-wider focus:outline-none"
             style="background-color:var(--surface-alt);border-color:var(--border);color:var(--text);"
           />
         </div>
@@ -259,92 +319,122 @@
     </div>
   </div>
 
-  <!-- STEP 2: MAIN DASHBOARD (Tree-Connected Filters + Automatic Chat Reader) -->
-  <div id="screen-app" class="hidden max-w-4xl w-full mx-auto space-y-3 pt-24 pb-12">
-    <!-- Active Chat Folders & Channels Direct Selector Bar -->
-    <div class="acas-surface p-3.5 rounded-2xl border space-y-2.5 text-xs">
-      <div class="flex flex-wrap items-center justify-between gap-2">
-        <div class="flex items-center gap-2">
-          <svg class="w-4 h-4 shrink-0" style="color:var(--primary-text);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+  <!-- STEP 2: CLEAN, MINIMAL MAIN DASHBOARD (Mobile & Desktop Responsive) -->
+  <div id="screen-app" class="hidden max-w-4xl w-full mx-auto space-y-2.5 sm:space-y-3 pt-16 sm:pt-22 pb-10">
+    <div class="acas-surface p-2.5 sm:p-3.5 rounded-2xl border space-y-2.5">
+      <!-- Top Row: Search (Full width on mobile, inline on desktop) + Active Source Pill + Fast Sync Button -->
+      <div id="tour-search-sync" class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+        <div class="relative flex-1 min-w-0">
+          <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" style="color:var(--muted);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
           </svg>
-          <span style="color:var(--muted);">Skaner manbasi:</span>
-          <strong id="active-folder-summary" class="font-semibold">Barcha kanallar va guruhlar</strong>
+          <input
+            id="inp-search"
+            oninput="renderFeed()"
+            type="text"
+            placeholder="E’lonlar ichidan qidirish..."
+            class="w-full pl-9 pr-3 py-2 rounded-xl border text-xs focus:outline-none"
+            style="background-color:var(--surface-alt);border-color:var(--border);color:var(--text);"
+          />
         </div>
 
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-1.5 sm:gap-2">
+          <button
+            onclick="openProfileModal()"
+            title="O‘qilayotgan papka va kanallarni o‘zgartirish"
+            class="flex-1 sm:flex-initial inline-flex items-center justify-center sm:justify-start gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl border text-xs font-medium min-w-0 sm:max-w-[220px] truncate"
+            style="background-color:var(--surface-alt);border-color:var(--border);color:var(--text);"
+          >
+            <svg class="w-3.5 h-3.5 shrink-0" style="color:var(--primary-text);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+            </svg>
+            <span id="active-folder-summary" class="truncate">Barcha chatlar</span>
+          </button>
+
           <button
             onclick="resyncSelectedFolders()"
             id="btn-quick-sync"
-            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-white font-semibold"
+            class="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-white text-xs font-semibold shrink-0"
             style="background-color:var(--primary);"
           >
             <svg id="icon-sync" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/>
             </svg>
-            <span id="txt-quick-sync">Skanerlash</span>
-          </button>
-
-          <button
-            onclick="toggleProfileModal()"
-            class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border font-semibold"
-            style="background-color:var(--primary-soft);border-color:var(--primary);color:var(--primary-text);"
-          >
-            <span>Papkalar & Kanallarni Tanlash</span>
+            <span id="txt-quick-sync">Yangilash</span>
           </button>
         </div>
       </div>
 
-      <!-- Direct Folder Chips Bar right on the main screen -->
-      <div id="quick-folders-bar" class="flex flex-wrap items-center gap-1.5 pt-1 border-t" style="border-color:var(--border);"></div>
-    </div>
-
-    <!-- CONNECTED TREE-STYLE FILTER ARCHITECTURE (Daraxtsimon Bog'langan Filtrlar) -->
-    <div class="acas-surface p-4 rounded-2xl border space-y-3">
-      <!-- Search Bar -->
-      <div class="relative">
-        <svg class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2" style="color:var(--muted);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
-        </svg>
-        <input
-          id="inp-search"
-          oninput="renderFeed()"
-          type="text"
-          placeholder="Kalit so‘z bo‘yicha qidirish..."
-          class="w-full pl-9 pr-3.5 py-2 rounded-xl border text-xs focus:outline-none"
-          style="background-color:var(--surface-alt);border-color:var(--border);color:var(--text);"
-        />
-      </div>
-
-      <!-- Tree Root Level: 5 Main Modules -->
-      <div class="space-y-2">
-        <div class="text-[11px] font-semibold uppercase tracking-wider" style="color:var(--muted);">
-          Yo‘nalishlar Daraxti
-        </div>
-        <div id="module-tabs" class="flex flex-wrap items-center gap-1.5"></div>
-
-        <!-- Connected Child Tree Branches (Dynamically connected under the selected Root Module!) -->
-        <div id="connected-tree-branches" class="tree-branch space-y-2 pt-1.5"></div>
-
-        <!-- Custom Day Range Slider inside Tree when 'custom' horizon is active -->
+      <!-- Connected Tree Filter: Swipeable on mobile, wrapped on desktop -->
+      <div id="tour-tree-filters" class="space-y-2 pt-1.5 border-t" style="border-color:var(--border);">
+        <div id="module-tabs" class="flex items-center gap-1.5 overflow-x-auto no-scrollbar sm:flex-wrap pb-0.5"></div>
+        <div id="connected-tree-branches" class="tree-branch space-y-1.5 pt-0.5"></div>
         <div id="custom-slider-box" class="hidden tree-branch pt-1">
           <div class="tree-node flex items-center gap-3 text-xs p-2 rounded-xl border" style="background-color:var(--surface-alt);border-color:var(--border);">
-            <span>Kun oralig‘i: <strong id="custom-days-label" class="font-mono" style="color:var(--primary-text);">1 – 90 kun</strong></span>
-            <input id="inp-custom-days" type="range" min="1" max="150" value="90" oninput="updateCustomDays(this.value)" class="flex-1" />
+            <span class="shrink-0">Kun: <strong id="custom-days-label" class="font-mono" style="color:var(--primary-text);">1 – 90 kun</strong></span>
+            <input id="inp-custom-days" type="range" min="1" max="150" value="90" oninput="updateCustomDays(this.value)" class="flex-1 min-w-0" />
           </div>
         </div>
       </div>
     </div>
 
     <!-- Extracted Insights Feed -->
-    <div id="feed-container" class="space-y-2.5"></div>
+    <div id="feed-container" class="space-y-2"></div>
   </div>
 
-  <!-- DEDICATED "PROFIL" MODAL / DRAWER (Account Info + Log Out + Chat Folders Selector + Module ON/OFF) -->
-  <div id="profile-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4" style="background-color:rgba(0,0,0,0.55);backdrop-filter:blur(3px);">
-    <div class="acas-surface w-full max-w-lg rounded-2xl border p-5 space-y-5 max-h-[88vh] overflow-y-auto">
+  <!-- ANIMATED ONBOARDING TOUR OVERLAY (Strelkali Ko'rsatmalar) -->
+  <div id="onboarding-tour-overlay" class="hidden fixed inset-0 z-50 pointer-events-auto" style="background-color:rgba(0,0,0,0.48);backdrop-filter:blur(1.5px);">
+    <div id="tour-popover" class="fixed z-[70] w-[calc(100vw-24px)] max-w-[330px] transition-all duration-300">
+      <!-- Bouncing SVG Arrow pointing up at the highlighted target -->
+      <div id="tour-arrow-top" class="flex justify-center mb-1 tour-arrow-up">
+        <svg class="w-8 h-8 drop-shadow" style="color:var(--primary);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 19V5"/><path d="m5 12 7-7 7 7"/>
+        </svg>
+      </div>
+
+      <div class="acas-surface rounded-2xl border-2 p-3.5 sm:p-4 space-y-2.5 shadow-2xl" style="border-color:var(--primary);">
+        <div class="flex items-center justify-between">
+          <span id="tour-step-badge" class="text-[11px] font-mono font-bold px-2 py-0.5 rounded-lg" style="background-color:var(--primary-soft);color:var(--primary-text);">
+            1 / 4 KO‘RSATMA
+          </span>
+          <button onclick="closeOnboardingTour()" class="text-[11px] font-semibold hover:underline" style="color:var(--muted);">
+            Yopish
+          </button>
+        </div>
+
+        <div class="space-y-1">
+          <h4 id="tour-step-title" class="text-xs sm:text-sm font-bold"></h4>
+          <p id="tour-step-desc" class="text-[11px] sm:text-xs leading-relaxed" style="color:var(--muted);"></p>
+        </div>
+
+        <div class="flex items-center justify-between pt-1.5 border-t" style="border-color:var(--border);">
+          <button
+            id="btn-tour-prev"
+            onclick="prevOnboardingStep()"
+            class="px-3 py-1.5 rounded-xl border text-xs font-semibold"
+            style="background-color:var(--surface-alt);border-color:var(--border);color:var(--text);"
+          >
+            Oldingi
+          </button>
+          <button
+            id="btn-tour-next"
+            onclick="nextOnboardingStep()"
+            class="px-3.5 py-1.5 rounded-xl text-white text-xs font-semibold flex items-center gap-1.5"
+            style="background-color:var(--primary);"
+          >
+            <span id="btn-tour-next-text">Keyingisi</span>
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DEDICATED "PROFIL" MODAL (Bottom-Sheet on Mobile Phones, Centered Modal on Desktop) -->
+  <div id="profile-modal" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" style="background-color:rgba(0,0,0,0.55);backdrop-filter:blur(3px);">
+    <div class="acas-surface w-full max-w-lg rounded-t-2xl sm:rounded-2xl border p-4 sm:p-5 space-y-3.5 max-h-[92dvh] sm:max-h-[88vh] flex flex-col">
       <!-- Modal Header -->
-      <div class="flex items-center justify-between border-b pb-3" style="border-color:var(--border);">
+      <div class="flex items-center justify-between border-b pb-3 shrink-0" style="border-color:var(--border);">
         <div class="flex items-center gap-2.5">
           <div class="w-9 h-9 rounded-xl flex items-center justify-center border" style="background-color:var(--primary-soft);border-color:var(--primary);color:var(--primary-text);">
             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -352,87 +442,139 @@
             </svg>
           </div>
           <div>
-            <h3 class="text-sm font-bold">Profil va Agent Sozlamalari</h3>
+            <h3 class="text-sm font-bold">Profil va Manba Sozlamalari</h3>
             <p id="profile-phone-label" class="text-xs font-mono" style="color:var(--muted);">2FA Tasdiqlangan Hisob</p>
           </div>
         </div>
 
-        <button onclick="toggleProfileModal()" class="w-8 h-8 rounded-lg border flex items-center justify-center" style="background-color:var(--surface-alt);border-color:var(--border);color:var(--muted);">
+        <button onclick="cancelProfileChanges()" title="O‘zgarishsiz yopish" class="w-8 h-8 rounded-lg border flex items-center justify-center" style="background-color:var(--surface-alt);border-color:var(--border);color:var(--muted);">
           <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
         </button>
       </div>
 
-      <!-- SECTION 1: TELEGRAM CHAT FOLDERS (Papkalar — Barchasi, bittasi yoki bir nechtasini tanlash) -->
-      <div class="space-y-2.5">
-        <div class="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <div class="text-xs font-bold">1. Telegram Chat Folders (Papkalar) va Kanallar</div>
-            <div class="text-[11px]" style="color:var(--muted);">
-              1 ta papka, bir nechta papka, alohida kanallar yoki barchasini tanlang:
+      <!-- Scrollable Modal Body -->
+      <div class="space-y-4 overflow-y-auto pr-1 flex-1">
+        <!-- SECTION 1: TELEGRAM CHAT FOLDERS & CHANNELS -->
+        <div class="space-y-2">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <div class="text-xs font-bold">1. O‘qiladigan Papkalar va Kanallar</div>
+              <div class="text-[11px]" style="color:var(--muted);">
+                Keraklilarini belgilang yoki olib tashlang, so‘ng pastda tasdiqlang:
+              </div>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <button
+                onclick="selectAllDraftFolders()"
+                class="px-2.5 py-1 rounded-lg border text-[11px] font-semibold"
+                style="background-color:var(--surface-alt);border-color:var(--border);color:var(--text);"
+              >
+                Barchasi
+              </button>
+              <button
+                onclick="clearFolderSelectionForCustomPick()"
+                class="px-2.5 py-1 rounded-lg border text-[11px] font-semibold"
+                style="background-color:var(--surface-alt);border-color:var(--border);color:var(--text);"
+              >
+                Alohida tanlash
+              </button>
             </div>
           </div>
-          <div class="flex items-center gap-1.5">
-            <button
-              onclick="clearFolderSelectionForCustomPick()"
-              class="px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold"
-              style="background-color:var(--surface-alt);border-color:var(--border);color:var(--text);"
-            >
-              Alohida tanlash
-            </button>
-            <button
-              onclick="resyncSelectedFolders()"
-              class="px-3 py-1.5 rounded-lg text-white text-xs font-semibold"
-              style="background-color:var(--primary);"
-            >
-              Skanerlash
-            </button>
-          </div>
+
+          <input
+            id="inp-folder-search"
+            type="text"
+            oninput="renderProfileModal()"
+            placeholder="Papka yoki kanal nomini yozing..."
+            class="w-full px-3 py-2 rounded-xl border text-xs focus:outline-none"
+            style="background-color:var(--surface-alt);border-color:var(--border);color:var(--text);"
+          />
+
+          <div id="profile-folders-list" class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-56 overflow-y-auto pr-1"></div>
         </div>
 
-        <input
-          id="inp-folder-search"
-          type="text"
-          oninput="renderProfileModal()"
-          placeholder="Papka, kanal yoki guruh nomini qidirish..."
-          class="w-full px-3 py-2 rounded-xl border text-xs focus:outline-none"
-          style="background-color:var(--surface-alt);border-color:var(--border);color:var(--text);"
-        />
+        <!-- SECTION 2: MODULE ON / OFF TOGGLES -->
+        <div class="pt-3 border-t space-y-2" style="border-color:var(--border);">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-xs font-bold">2. Faol Yo‘nalishlar (ON / OFF)</div>
+              <div class="text-[11px]" style="color:var(--muted);">
+                Olib tashlamoqchi bo‘lgan yo‘nalishni OFF qiling va tasdiqlang:
+              </div>
+            </div>
+            <span id="kpi-speed" class="text-[11px] font-mono font-semibold px-2 py-0.5 rounded" style="background-color:rgba(16,185,129,0.12);color:var(--accent-emerald);">
+              5/5 faol
+            </span>
+          </div>
 
-        <div id="profile-folders-list" class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-80 overflow-y-auto pr-1"></div>
-      </div>
+          <div id="app-module-toggles" class="grid grid-cols-1 sm:grid-cols-2 gap-1.5"></div>
+        </div>
 
-      <!-- SECTION 2: MODULE ON / OFF TOGGLES (Faol Bo'limlar va Tezlik) -->
-      <div class="pt-3 border-t space-y-2.5" style="border-color:var(--border);">
-        <div class="flex items-center justify-between">
-          <div>
-            <div class="text-xs font-bold">2. Faol Bo‘limlar (ON / OFF)</div>
+        <!-- SECTION 3: LOG OUT WITH EXPLICIT CONFIRMATION -->
+        <div class="pt-3 border-t space-y-2" style="border-color:var(--border);">
+          <div id="logout-default-row" class="flex items-center justify-between gap-3">
             <div class="text-[11px]" style="color:var(--muted);">
-              Keraksiz bo‘limlarni o‘chirib qo‘ysangiz, Agent faqat yoqilgan bo‘limlarni qidiradi:
+              Hisobingiz doimiy ulangan turadi (yangilanganda ham chiqib ketmaydi).
+            </div>
+            <button
+              onclick="toggleLogoutConfirm(true)"
+              class="px-3 py-1.5 rounded-xl border text-xs font-semibold shrink-0 flex items-center gap-1.5"
+              style="background-color:rgba(225,29,72,0.08);border-color:var(--accent-rose);color:var(--accent-rose);"
+            >
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/>
+              </svg>
+              <span>Hisobdan Chiqish</span>
+            </button>
+          </div>
+
+          <!-- Inline Log Out Confirmation Box -->
+          <div id="logout-confirm-box" class="hidden p-3 rounded-xl border space-y-2" style="background-color:rgba(225,29,72,0.08);border-color:var(--accent-rose);">
+            <div class="text-xs font-semibold" style="color:var(--accent-rose);">
+              Hisobni olib tashlashni (Log Out) tasdiqlaysizmi yoki ulangan holda qoldirasizmi?
+            </div>
+            <div class="flex items-center justify-end gap-2">
+              <button
+                onclick="toggleLogoutConfirm(false)"
+                class="px-3 py-1.5 rounded-lg border text-xs font-semibold"
+                style="background-color:var(--surface);border-color:var(--border);color:var(--text);"
+              >
+                Hisobni Qoldirish
+              </button>
+              <button
+                onclick="handleLogOut()"
+                class="px-3 py-1.5 rounded-lg text-white text-xs font-semibold"
+                style="background-color:var(--accent-rose);"
+              >
+                Chiqishni Tasdiqlash
+              </button>
             </div>
           </div>
-          <span id="kpi-speed" class="text-[11px] font-mono font-semibold px-2 py-0.5 rounded" style="background-color:rgba(16,185,129,0.12);color:var(--accent-emerald);">
-            5/5 faol
-          </span>
         </div>
-
-        <div id="app-module-toggles" class="grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
       </div>
 
-      <!-- SECTION 3: PERSISTENT SESSION & LOG OUT -->
-      <div class="pt-3 border-t flex items-center justify-between gap-3" style="border-color:var(--border);">
-        <div class="text-[11px]" style="color:var(--muted);">
-          Hisobdan chiqmaguningizcha Mini App har safar to‘g‘ridan-to‘g‘ri ulangan holda ochiladi.
+      <!-- STICKY CONFIRMATION FOOTER: Tasdiqlash vs O'zgarishsiz Qoldirish -->
+      <div class="pt-3 border-t shrink-0 flex flex-wrap items-center justify-between gap-2" style="border-color:var(--border);">
+        <span id="profile-draft-status" class="text-[11px] font-medium" style="color:var(--muted);">
+          Tanlovlarni ko‘rib chiqing va tasdiqlang
+        </span>
+        <div class="flex items-center gap-2 ml-auto">
+          <button
+            onclick="cancelProfileChanges()"
+            class="px-3.5 py-2 rounded-xl border text-xs font-semibold"
+            style="background-color:var(--surface-alt);border-color:var(--border);color:var(--text);"
+          >
+            O‘zgarishsiz Qoldirish
+          </button>
+          <button
+            onclick="confirmProfileChanges()"
+            class="px-4 py-2 rounded-xl text-white text-xs font-semibold flex items-center gap-1.5"
+            style="background-color:var(--primary);"
+          >
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Tasdiqlash va Qo‘llash</span>
+          </button>
         </div>
-        <button
-          onclick="handleLogOut()"
-          class="px-3.5 py-2 rounded-xl border text-xs font-semibold shrink-0 flex items-center gap-1.5"
-          style="background-color:rgba(225,29,72,0.10);border-color:var(--accent-rose);color:var(--accent-rose);"
-        >
-          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/>
-          </svg>
-          <span>Log Out (Chiqish)</span>
-        </button>
       </div>
     </div>
   </div>
@@ -469,6 +611,10 @@
       chats: [],
       selectedFolderIds: ['all'],
       enabledModules: { events: true, conferences: true, volunteering: true, scholarships: true, competitions: true },
+      draftSelectedFolderIds: ['all'],
+      draftEnabledModules: { events: true, conferences: true, volunteering: true, scholarships: true, competitions: true },
+      tourStep: 0,
+      tourActive: false,
       activeTab: 'all',
       horizon: 'all',
       customDays: 90,
@@ -518,15 +664,12 @@
     async function loadFoldersFromServer() {
       state.foldersLoading = true;
       renderProfileModal();
-      renderQuickFoldersBar();
       try {
-        const res = await fetch(API_BASE + '/api/folders');
+        await resolveApiBase();
+        const res = await fetch(API_BASE + '/api/folders', {
+          headers: state.sessionString ? { 'X-Acas-Session': state.sessionString } : {}
+        });
         const data = await res.json();
-        if (res.status === 401 || data.authRequired) {
-          await handleLogOut();
-          showAuthMsg('Telegram sessiyasi ulanmagan. Raqamingizni kiriting va tasdiqlang.', true);
-          return false;
-        }
         if (data.ok) {
           if (Array.isArray(data.folders) && data.folders.length) state.folders = data.folders;
           if (Array.isArray(data.chats)) state.chats = data.chats;
@@ -536,18 +679,67 @@
       } catch {} finally {
         state.foldersLoading = false;
         renderProfileModal();
-        renderQuickFoldersBar();
         updateActiveFolderSummary();
       }
       return false;
     }
 
-    async function toggleProfileModal() {
-      const modal = document.getElementById('profile-modal');
-      modal.classList.toggle('hidden');
+    async function openProfileModal() {
+      state.draftSelectedFolderIds = [...state.selectedFolderIds];
+      state.draftEnabledModules = { ...state.enabledModules };
+      toggleLogoutConfirm(false);
+      document.getElementById('profile-modal').classList.remove('hidden');
       renderProfileModal();
-      if (modal.classList.contains('hidden')) return;
       await loadFoldersFromServer();
+    }
+
+    function toggleProfileModal() {
+      const modal = document.getElementById('profile-modal');
+      if (modal.classList.contains('hidden')) {
+        openProfileModal();
+      } else {
+        cancelProfileChanges();
+      }
+    }
+
+    function cancelProfileChanges() {
+      // O'zgarishlarni bekor qilib, avvalgi holatida qoldiradi
+      state.draftSelectedFolderIds = [...state.selectedFolderIds];
+      state.draftEnabledModules = { ...state.enabledModules };
+      toggleLogoutConfirm(false);
+      document.getElementById('profile-modal').classList.add('hidden');
+      renderAll();
+    }
+
+    function confirmProfileChanges() {
+      // Tasdiqlangan o'zgarishlarni (olib tashlangan yoki qo'shilgan papka va bo'limlarni) saqlaydi
+      const nextFolders = state.draftSelectedFolderIds.length > 0 ? [...state.draftSelectedFolderIds] : ['all'];
+      const foldersChanged =
+        nextFolders.length !== state.selectedFolderIds.length ||
+        nextFolders.some(id => !state.selectedFolderIds.includes(id));
+
+      state.selectedFolderIds = nextFolders;
+      state.enabledModules = { ...state.draftEnabledModules };
+      if (state.activeTab !== 'all' && !state.enabledModules[state.activeTab]) {
+        state.activeTab = 'all';
+      }
+
+      document.getElementById('profile-modal').classList.add('hidden');
+      persistLocal();
+      renderAll();
+
+      if (foldersChanged || state.items.length === 0) {
+        startStreamScan();
+      }
+    }
+
+    function toggleLogoutConfirm(show) {
+      const defRow = document.getElementById('logout-default-row');
+      const confBox = document.getElementById('logout-confirm-box');
+      if (defRow && confBox) {
+        defRow.classList.toggle('hidden', Boolean(show));
+        confBox.classList.toggle('hidden', !show);
+      }
     }
 
     let API_BASE = window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1')
@@ -580,39 +772,98 @@
       return API_BASE;
     }
 
-    // Check Persistent Session on Startup (Auto-connect ONLY if real MTProto session is active!)
+    function readTelegramCloudStorage(key) {
+      return new Promise((resolve) => {
+        try {
+          const cs = window.Telegram?.WebApp?.CloudStorage;
+          if (!cs || typeof cs.getItem !== 'function') return resolve(null);
+          cs.getItem(key, (err, val) => {
+            if (err || !val) return resolve(null);
+            try { resolve(JSON.parse(val)); } catch { resolve(null); }
+          });
+        } catch {
+          resolve(null);
+        }
+      });
+    }
+
+    function writeTelegramCloudStorage(key, obj) {
+      try {
+        const cs = window.Telegram?.WebApp?.CloudStorage;
+        if (!cs || typeof cs.setItem !== 'function') return;
+        cs.setItem(key, JSON.stringify(obj), () => {});
+      } catch {}
+    }
+
+    function removeTelegramCloudStorage(key) {
+      try {
+        const cs = window.Telegram?.WebApp?.CloudStorage;
+        if (!cs || typeof cs.removeItem !== 'function') return;
+        cs.removeItem(key, () => {});
+      } catch {}
+    }
+
+    function loadBestLocalCachedSession() {
+      for (const k of ['acas_saved_session', 'acas_permanent_auth']) {
+        const raw = localStorage.getItem(k);
+        if (raw) {
+          try {
+            const p = JSON.parse(raw);
+            if (p && (p.sessionString || p.session)) return p;
+          } catch {}
+        }
+      }
+      return null;
+    }
+
+    // Versiya yangilanganda, server qayta yonganda yoki Mini App qayta ochilganda
+    // kirib turgan hisob ASLO chiqib ketmaydi (faqat foydalanuvchi o'zi Log Out bosgandagina chiqadi!)
     async function checkExistingSession() {
-      await resolveApiBase();
-      let cachedParsed = null;
-      const cached = localStorage.getItem('acas_saved_session');
-      if (cached) {
-        try { cachedParsed = JSON.parse(cached); } catch {}
+      let cachedParsed = loadBestLocalCachedSession();
+      if (!cachedParsed || !cachedParsed.sessionString) {
+        const cloudSaved = await readTelegramCloudStorage('acas_cloud_auth');
+        if (cloudSaved && (cloudSaved.sessionString || cloudSaved.session)) {
+          cachedParsed = { ...(cachedParsed || {}), ...cloudSaved };
+        }
       }
 
+      // 1. Agar qurilmada/Telegram CloudStorage'da saqlangan sessiya bo'lsa — kutmasdan darhol hisobni ochamiz!
+      let alreadyActivated = false;
+      if (cachedParsed && cachedParsed.session && cachedParsed.sessionString) {
+        activateAuthenticatedView(cachedParsed, true);
+        alreadyActivated = true;
+      }
+
+      // 2. Orqa fonda server bilan sinxronlaymiz (server yangilangan bo'lsa, sessionString serverga tiklanadi)
+      await resolveApiBase();
       try {
         const res = await fetch(API_BASE + '/api/auth/session', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(cachedParsed?.sessionString ? { 'X-Acas-Session': cachedParsed.sessionString } : {})
+          },
           body: JSON.stringify(cachedParsed || {})
         });
         const data = await res.json();
         if (data.ok && data.authenticated && data.session) {
-          activateAuthenticatedView(data);
+          activateAuthenticatedView(data, alreadyActivated);
           return;
         }
-        // Serverda haqiqiy MTProto sessiya yo'q bo'lsa — eski keshni tozalab, Login oynasini ko'rsatamiz!
-        localStorage.removeItem('acas_saved_session');
       } catch {}
     }
 
-    function activateAuthenticatedView(data) {
-      state.session = data.session;
+    function activateAuthenticatedView(data, skipAutoScan = false) {
+      if (data.session) state.session = data.session;
       if (data.sessionString) state.sessionString = data.sessionString;
       if (Array.isArray(data.folders) && data.folders.length > 0) state.folders = data.folders;
-      if (Array.isArray(data.chats)) state.chats = data.chats;
+      if (Array.isArray(data.chats) && data.chats.length > 0) state.chats = data.chats;
       if (Array.isArray(data.selectedFolderIds) && data.selectedFolderIds.length > 0) state.selectedFolderIds = data.selectedFolderIds;
       if (data.enabledModules) state.enabledModules = data.enabledModules;
-      if (Array.isArray(data.insights)) state.items = data.insights;
+      if (Array.isArray(data.insights) && data.insights.length > 0) state.items = data.insights;
+
+      state.draftSelectedFolderIds = [...state.selectedFolderIds];
+      state.draftEnabledModules = { ...state.enabledModules };
 
       persistLocal();
 
@@ -622,128 +873,108 @@
       const profBtn = document.getElementById('btn-open-profile');
       profBtn.classList.remove('hidden');
       profBtn.classList.add('inline-flex');
-      document.getElementById('profile-btn-label').textContent = state.session.firstName || 'Profil';
-      document.getElementById('profile-phone-label').textContent = `${state.session.phoneNumber} • 2FA Faol`;
+
+      const helpBtn = document.getElementById('btn-tour-help');
+      if (helpBtn) {
+        helpBtn.classList.remove('hidden');
+        helpBtn.classList.add('inline-flex');
+      }
+
+      document.getElementById('profile-btn-label').textContent = state.session?.firstName || 'Profil';
+      document.getElementById('profile-phone-label').textContent = `${state.session?.phoneNumber || ''} • 2FA Faol`;
 
       renderAll();
       if (!state.chats || state.chats.length === 0) {
         loadFoldersFromServer();
       }
-      // Yangi login yoki saqlangan natija bo'lmasa — darhol jonli skan
-      if (!state.items.length) startStreamScan();
+      if (!skipAutoScan && !state.items.length) {
+        startStreamScan();
+      }
+
+      // Birinchi marta kirganda strelkali animatsion ko'rsatmani chiqaramiz!
+      if (!localStorage.getItem('acas_tour_v1_done')) {
+        setTimeout(() => startOnboardingTour(false), 450);
+      }
     }
 
+    // FAQAT foydalanuvchi o'zi Profil ichidan "Chiqishni Tasdiqlash" tugmasini bosgandagina ishlaydi!
     async function handleLogOut() {
       if (scanSource) {
         try { scanSource.close(); } catch {}
         scanSource = null;
       }
+      closeOnboardingTour();
       try {
         await fetch(API_BASE + '/api/auth/logout', { method: 'POST' });
       } catch {}
       localStorage.removeItem('acas_saved_session');
+      localStorage.removeItem('acas_permanent_auth');
+      removeTelegramCloudStorage('acas_cloud_auth');
       state.session = null;
       state.sessionString = '';
       state.items = [];
       state.chats = [];
       state.folders = [{ id: 'all', title: 'Barcha kanallar va guruhlar', chatsCount: 0 }];
       state.selectedFolderIds = ['all'];
+      state.draftSelectedFolderIds = ['all'];
       document.getElementById('profile-modal').classList.add('hidden');
       document.getElementById('btn-open-profile').classList.add('hidden');
       document.getElementById('btn-open-profile').classList.remove('inline-flex');
+      const helpBtn = document.getElementById('btn-tour-help');
+      if (helpBtn) {
+        helpBtn.classList.add('hidden');
+        helpBtn.classList.remove('inline-flex');
+      }
       document.getElementById('screen-app').classList.add('hidden');
       document.getElementById('screen-auth').classList.remove('hidden');
       backToPhoneStep();
     }
 
-    function clearFolderSelectionForCustomPick() {
-      // "Barchasi" belgisini olib tashlaydi, shunda foydalanuvchi xohlagan 1 ta yoki bir nechta papka/kanalni tanlaydi
-      state.selectedFolderIds = [];
+    function selectAllDraftFolders() {
+      state.draftSelectedFolderIds = ['all'];
       renderProfileModal();
-      renderQuickFoldersBar();
-      updateActiveFolderSummary();
     }
 
-    function toggleChatFolder(folderId, autoScan = false) {
+    function clearFolderSelectionForCustomPick() {
+      state.draftSelectedFolderIds = [];
+      renderProfileModal();
+    }
+
+    function toggleChatFolder(folderId) {
       if (folderId === 'all') {
-        // Agar "all" allaqachon tanlangan bo'lsa va ustiga bosilsa — alohida tanlash rejimiga o'tkazamiz!
-        if (state.selectedFolderIds.length === 1 && state.selectedFolderIds[0] === 'all') {
-          state.selectedFolderIds = [];
+        if (state.draftSelectedFolderIds.length === 1 && state.draftSelectedFolderIds[0] === 'all') {
+          state.draftSelectedFolderIds = [];
         } else {
-          state.selectedFolderIds = ['all'];
+          state.draftSelectedFolderIds = ['all'];
         }
       } else {
-        const withoutAll = state.selectedFolderIds.filter(id => id !== 'all');
+        const withoutAll = state.draftSelectedFolderIds.filter(id => id !== 'all');
         if (withoutAll.includes(folderId)) {
-          state.selectedFolderIds = withoutAll.filter(id => id !== folderId);
+          state.draftSelectedFolderIds = withoutAll.filter(id => id !== folderId);
         } else {
-          state.selectedFolderIds = [...withoutAll, folderId];
+          state.draftSelectedFolderIds = [...withoutAll, folderId];
         }
       }
       renderProfileModal();
-      renderQuickFoldersBar();
-      updateActiveFolderSummary();
-      persistLocal();
-      if (autoScan && state.selectedFolderIds.length > 0) {
-        startStreamScan();
-      }
     }
 
     function updateActiveFolderSummary() {
       const el = document.getElementById('active-folder-summary');
       if (!el) return;
-      if (state.selectedFolderIds.length === 0) {
-        el.textContent = 'Papka yoki kanal tanlanmagan (quyidagilardan tanlang)';
-        return;
-      }
-      if (state.selectedFolderIds.includes('all')) {
+      if (state.selectedFolderIds.length === 0 || state.selectedFolderIds.includes('all')) {
         const allF = state.folders.find(f => f.id === 'all');
         const cnt = allF?.chatsCount || state.chats?.length || 0;
-        el.textContent = cnt > 0 ? `Barcha kanallar va guruhlar (${cnt} ta chat)` : 'Barcha kanallar va guruhlar';
+        el.textContent = cnt > 0 ? `Barcha chatlar (${cnt})` : 'Barcha chatlar';
       } else {
         const allEntries = [...state.folders, ...(state.chats || [])];
         const names = allEntries
           .filter(f => state.selectedFolderIds.includes(f.id))
           .map(f => f.title);
-        el.textContent = names.slice(0, 3).join(', ') + (names.length > 3 ? ` +${names.length - 3} ta` : '');
+        el.textContent = names.slice(0, 2).join(', ') + (names.length > 2 ? ` +${names.length - 2}` : '');
       }
     }
 
-    function renderQuickFoldersBar() {
-      const bar = document.getElementById('quick-folders-bar');
-      if (!bar) return;
-      if (state.foldersLoading && state.folders.length <= 1 && (!state.chats || !state.chats.length)) {
-        bar.innerHTML = `<span class="text-[11px]" style="color:var(--muted);">Telegram papkalari va kanallar yuklanmoqda...</span>`;
-        return;
-      }
-      const folderChips = state.folders.map(f => {
-        const active = state.selectedFolderIds.includes(f.id);
-        const cntText = f.chatsCount !== undefined ? ` (${f.chatsCount})` : '';
-        return `
-          <button
-            onclick="toggleChatFolder('${f.id}', true)"
-            class="px-2.5 py-1 rounded-lg border text-[11px] font-semibold inline-flex items-center gap-1.5 transition"
-            style="background-color:${active ? 'var(--primary)' : 'var(--surface-alt)'};border-color:${active ? 'var(--primary)' : 'var(--border)'};color:${active ? '#FFFFFF' : 'var(--text)'};"
-          >
-            <span>${f.title}${cntText}</span>
-          </button>
-        `;
-      }).join('');
-
-      const selectedChatsCount = state.selectedFolderIds.filter(id => id.startsWith('chat_')).length;
-      const totalChatsCount = (state.chats || []).length;
-      const pickChannelsBtn = `
-        <button
-          onclick="toggleProfileModal()"
-          class="px-2.5 py-1 rounded-lg border text-[11px] font-semibold inline-flex items-center gap-1"
-          style="background-color:${selectedChatsCount > 0 ? 'var(--primary-soft)' : 'var(--surface-alt)'};border-color:${selectedChatsCount > 0 ? 'var(--primary)' : 'var(--border)'};color:var(--primary-text);"
-        >
-          <span>+ Alohida kanallarni tanlash (${selectedChatsCount > 0 ? selectedChatsCount + ' tanlandi / ' : ''}${totalChatsCount} ta)</span>
-        </button>
-      `;
-
-      bar.innerHTML = folderChips + pickChannelsBtn;
-    }
+    function renderQuickFoldersBar() {}
 
     // JONLI SKAN: topilgan har bir e'lon darhol ro'yxatga qo'shiladi
     let scanSource = null;
@@ -755,7 +986,8 @@
     }
 
     function persistLocal() {
-      localStorage.setItem('acas_saved_session', JSON.stringify({
+      if (!state.session) return;
+      const fullPayload = {
         session: state.session,
         sessionString: state.sessionString,
         folders: state.folders,
@@ -763,11 +995,23 @@
         selectedFolderIds: state.selectedFolderIds,
         enabledModules: state.enabledModules,
         insights: state.items
-      }));
+      };
+      localStorage.setItem('acas_saved_session', JSON.stringify(fullPayload));
+      if (state.sessionString) {
+        const coreAuth = {
+          session: state.session,
+          sessionString: state.sessionString,
+          selectedFolderIds: state.selectedFolderIds,
+          enabledModules: state.enabledModules
+        };
+        localStorage.setItem('acas_permanent_auth', JSON.stringify(coreAuth));
+        writeTelegramCloudStorage('acas_cloud_auth', coreAuth);
+      }
     }
 
-    function startStreamScan() {
+    async function startStreamScan() {
       if (scanSource) scanSource.close();
+      await resolveApiBase();
       if (state.selectedFolderIds.length === 0) {
         state.selectedFolderIds = ['all'];
       }
@@ -781,7 +1025,8 @@
 
       const params = new URLSearchParams({
         folders: state.selectedFolderIds.join(','),
-        modules: JSON.stringify(state.enabledModules)
+        modules: JSON.stringify(state.enabledModules),
+        ...(state.sessionString ? { token: state.sessionString } : {})
       });
       const es = new EventSource(API_BASE + '/api/insights/stream?' + params.toString());
       scanSource = es;
@@ -795,12 +1040,6 @@
         renderAll();
       };
 
-      es.addEventListener('auth-required', async () => {
-        es.close();
-        scanSource = null;
-        await handleLogOut();
-        showAuthMsg('Telegram sessiyasi ulanmagan. Raqamingizni kiriting va tasdiqlang.', true);
-      });
       es.addEventListener('folders', (ev) => {
         const d = JSON.parse(ev.data);
         if (Array.isArray(d.folders) && d.folders.length) state.folders = d.folders;
@@ -831,7 +1070,10 @@
     function resyncSelectedFolders() { startStreamScan(); }
 
     function renderProfileModal() {
-      // 1. Render Chat Folders + Individual Channels checkboxes
+      // 1. Render Chat Folders + Individual Channels checkboxes (using draftSelectedFolderIds!)
+      const draftFolders = state.draftSelectedFolderIds || state.selectedFolderIds;
+      const draftMods = state.draftEnabledModules || state.enabledModules;
+
       const fEl = document.getElementById('profile-folders-list');
       if (fEl) {
         if (state.foldersLoading && state.folders.length <= 1 && (!state.chats || !state.chats.length)) {
@@ -842,18 +1084,18 @@
           const chatList = (state.chats || []).filter(c => !q || (c.title || '').toLowerCase().includes(q) || (c.username || '').toLowerCase().includes(q));
 
           const renderBtn = (f, isChatItem = false) => {
-            const checked = state.selectedFolderIds.includes(f.id);
+            const checked = draftFolders.includes(f.id);
             const checkIcon = checked
               ? `<svg class="w-4 h-4 shrink-0" style="color:var(--primary-text);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect width="18" height="18" x="3" y="3" rx="4"/><path d="m9 12 2 2 4-4"/></svg>`
               : `<svg class="w-4 h-4 shrink-0" style="color:var(--muted);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="4"/></svg>`;
             const rightBadge = checked
               ? 'TANLANDI'
-              : (isChatItem ? (f.isChannel ? 'Kanal · Tanlash' : 'Guruh · Tanlash') : `${f.chatsCount ?? 0} chat · Tanlash`);
+              : (isChatItem ? (f.isChannel ? 'Kanal' : 'Guruh') : `${f.chatsCount ?? 0} chat`);
 
             return `
               <button
-                onclick="toggleChatFolder('${f.id}', false)"
-                class="p-2.5 rounded-xl border text-left text-xs flex items-center justify-between gap-2 transition"
+                onclick="toggleChatFolder('${f.id}')"
+                class="p-2 rounded-xl border text-left text-xs flex items-center justify-between gap-2 transition"
                 style="background-color:${checked ? 'var(--primary-soft)' : 'var(--surface-alt)'};border-color:${checked ? 'var(--primary)' : 'var(--border)'};"
               >
                 <div class="flex items-center gap-2 min-w-0">
@@ -879,35 +1121,51 @@
             htmlParts.push(`<div class="sm:col-span-2 pt-2 text-[11px] font-semibold uppercase tracking-wider" style="color:var(--muted);">Alohida Kanallar va Guruhlar (${chatList.length})</div>`);
             htmlParts.push(...chatList.map(c => renderBtn(c, true)));
           } else if (!state.foldersLoading) {
-            htmlParts.push(`<div class="sm:col-span-2 p-3 rounded-xl border text-xs text-center" style="color:var(--muted);border-color:var(--border);">Kanal yoki guruh topilmadi. Hisobga qayta kirib ko‘ring.</div>`);
+            htmlParts.push(`<div class="sm:col-span-2 p-3 rounded-xl border text-xs text-center" style="color:var(--muted);border-color:var(--border);">Kanal yoki guruh topilmadi.</div>`);
           }
           fEl.innerHTML = htmlParts.join('');
         }
       }
 
-      // 2. Render Module ON/OFF Toggles inside Profile
-      const activeCount = MODULES.filter(m => state.enabledModules[m.id]).length;
-      const ms = activeCount * 38;
+      // 2. Render Module ON/OFF Toggles inside Profile (using draftEnabledModules!)
+      const activeCount = MODULES.filter(m => draftMods[m.id]).length;
+      const ms = activeCount * 28;
       const speedEl = document.getElementById('kpi-speed');
       if (speedEl) speedEl.textContent = `${activeCount}/5 faol • ~${ms}ms`;
 
       const mEl = document.getElementById('app-module-toggles');
       if (mEl) {
         mEl.innerHTML = MODULES.map(m => {
-          const on = state.enabledModules[m.id];
+          const on = draftMods[m.id];
           return `
             <button
               onclick="toggleModule('${m.id}')"
-              class="p-3 rounded-xl border text-left text-xs flex items-center justify-between transition"
+              class="p-2.5 rounded-xl border text-left text-xs flex items-center justify-between transition"
               style="background-color:${on ? 'var(--primary-soft)' : 'var(--surface-alt)'};border-color:${on ? 'var(--primary)' : 'var(--border)'};opacity:${on ? '1' : '0.6'};"
             >
               <span class="font-semibold truncate">${m.shortTitle}</span>
               <span class="font-mono text-[10px] font-bold px-2 py-0.5 rounded" style="background-color:var(--surface);color:${on ? 'var(--primary-text)' : 'var(--muted)'}">
-                ${on ? 'ON' : 'OFF'}
+                ${on ? 'QOLDIRISH (ON)' : 'OLIB TASHLASH (OFF)'}
               </span>
             </button>
           `;
         }).join('');
+      }
+
+      // 3. Update Draft Changes Summary in Footer
+      const statusEl = document.getElementById('profile-draft-status');
+      if (statusEl) {
+        const foldersDiff =
+          draftFolders.length !== state.selectedFolderIds.length ||
+          draftFolders.some(id => !state.selectedFolderIds.includes(id));
+        const modsDiff = MODULES.some(m => Boolean(draftMods[m.id]) !== Boolean(state.enabledModules[m.id]));
+        if (foldersDiff || modsDiff) {
+          statusEl.textContent = 'O‘zgarish kiritildi — saqlash uchun "Tasdiqlash"ni bosing';
+          statusEl.style.color = 'var(--primary-text)';
+        } else {
+          statusEl.textContent = 'Hozirgi holat o‘zgarishsiz';
+          statusEl.style.color = 'var(--muted)';
+        }
       }
     }
 
@@ -1121,12 +1379,115 @@
     }
 
     function toggleModule(id) {
-      const next = { ...state.enabledModules, [id]: !state.enabledModules[id] };
+      // Profil oynasi ichida avval draft holatni o'zgartiradi, foydalanuvchi "Tasdiqlash"ni bosganda qo'llanadi!
+      const next = { ...state.draftEnabledModules, [id]: !state.draftEnabledModules[id] };
       if (Object.values(next).every(v => !v)) return;
-      state.enabledModules = next;
-      if (state.activeTab === id && !next[id]) state.activeTab = 'all';
-      renderAll();
+      state.draftEnabledModules = next;
+      renderProfileModal();
     }
+
+    // =========================================================================
+    // ANIMATED ARROW ONBOARDING TOUR (Strelkali Ko'rsatmalar)
+    // =========================================================================
+    const TOUR_STEPS = [
+      {
+        targetId: 'btn-open-profile',
+        title: 'Profil, Papkalar va Bo‘limlar',
+        desc: 'Bu tugma orqali qaysi Telegram papka yoki kanallarni o‘qishni belgilaysiz, keraksiz bo‘limlarni olib tashlab, o‘zgarishlarni tasdiqlaysiz.'
+      },
+      {
+        targetId: 'tour-search-sync',
+        title: 'Tezkor Qidiruv va Yangilash',
+        desc: 'Kalit so‘z yozib e’lonlarni bir zumda toping yoki "Yangilash" tugmasi bilan kanallarni 8x parallel tezlikda qayta skanerlang.'
+      },
+      {
+        targetId: 'tour-tree-filters',
+        title: 'Bog‘langan Yo‘nalishlar Daraxti',
+        desc: '5 ta asosiy yo‘nalishdan birini tanlang — uning ostida bog‘langan ichki shoxobcha va vaqt oralig‘i (1 kun, 1 hafta, 1 oy) ochiladi.'
+      },
+      {
+        targetId: 'feed-container',
+        title: 'Londa Panoramik E’lonlar',
+        desc: 'Har bir qatorda faqat asosiy faktlar va qolgan kun ko‘rinadi. Xohlagan e’lon ustiga bossangiz, Telegramdagi original postga o‘tadi.'
+      }
+    ];
+
+    function clearTourHighlights() {
+      TOUR_STEPS.forEach(s => {
+        const el = document.getElementById(s.targetId);
+        if (el) el.classList.remove('tour-highlight-target');
+      });
+    }
+
+    function startOnboardingTour(manual = false) {
+      if (!manual && localStorage.getItem('acas_tour_v1_done')) return;
+      state.tourStep = 0;
+      state.tourActive = true;
+      document.getElementById('onboarding-tour-overlay').classList.remove('hidden');
+      renderOnboardingStep();
+    }
+
+    function renderOnboardingStep() {
+      clearTourHighlights();
+      const step = TOUR_STEPS[state.tourStep];
+      if (!step) return closeOnboardingTour();
+
+      const target = document.getElementById(step.targetId);
+      const pop = document.getElementById('tour-popover');
+      const arrowTop = document.getElementById('tour-arrow-top');
+
+      document.getElementById('tour-step-badge').textContent = `${state.tourStep + 1} / ${TOUR_STEPS.length} KO‘RSATMA`;
+      document.getElementById('tour-step-title').textContent = step.title;
+      document.getElementById('tour-step-desc').textContent = step.desc;
+      document.getElementById('btn-tour-prev').classList.toggle('invisible', state.tourStep === 0);
+      document.getElementById('btn-tour-next-text').textContent =
+        state.tourStep === TOUR_STEPS.length - 1 ? 'Tushunarli' : 'Keyingisi';
+
+      if (target && pop) {
+        target.classList.add('tour-highlight-target');
+        const rect = target.getBoundingClientRect();
+        const popW = Math.min(340, window.innerWidth - 24);
+        const topPos = Math.min(window.innerHeight - 230, Math.max(64, rect.bottom + 10));
+        let leftPos = rect.left + rect.width / 2 - popW / 2;
+        leftPos = Math.max(12, Math.min(window.innerWidth - popW - 12, leftPos));
+
+        pop.style.top = `${topPos}px`;
+        pop.style.left = `${leftPos}px`;
+
+        // Strelkani aynan belgilangan tugma markaziga yo'naltiramiz
+        const arrowCenter = Math.max(24, Math.min(popW - 36, rect.left + rect.width / 2 - leftPos - 16));
+        arrowTop.style.justifyContent = 'flex-start';
+        arrowTop.style.paddingLeft = `${arrowCenter}px`;
+      }
+    }
+
+    function nextOnboardingStep() {
+      if (state.tourStep < TOUR_STEPS.length - 1) {
+        state.tourStep++;
+        renderOnboardingStep();
+      } else {
+        closeOnboardingTour();
+      }
+    }
+
+    function prevOnboardingStep() {
+      if (state.tourStep > 0) {
+        state.tourStep--;
+        renderOnboardingStep();
+      }
+    }
+
+    function closeOnboardingTour() {
+      state.tourActive = false;
+      clearTourHighlights();
+      localStorage.setItem('acas_tour_v1_done', '1');
+      const ov = document.getElementById('onboarding-tour-overlay');
+      if (ov) ov.classList.add('hidden');
+    }
+
+    window.addEventListener('resize', () => {
+      if (state.tourActive) renderOnboardingStep();
+    });
 
     /**
      * Connected Hierarchical Tree Filter Renderer
@@ -1305,13 +1666,27 @@
         const dayColor = d !== null && d !== undefined && d <= 3 ? 'var(--accent-rose)' : (d !== null && d !== undefined && d <= 14 ? 'var(--accent-amber)' : 'var(--muted)');
 
         return `
-          <a href="${item.sourceUrl}" target="_blank" rel="noopener noreferrer" class="acas-surface flex items-center gap-3 px-3.5 py-2.5 rounded-xl border hover:border-[var(--primary)]">
-            <span class="shrink-0 w-28 text-center px-2 py-1 rounded-lg text-[11px] font-semibold truncate" style="background-color:var(--primary-soft);color:var(--primary-text);">${badge}</span>
-            <div class="min-w-0 flex-1">
-              <div class="text-[13px] font-semibold truncate">${item.title}</div>
-              <div class="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] mt-0.5" style="color:var(--muted);">${facts}</div>
+          <a href="${item.sourceUrl}" target="_blank" rel="noopener noreferrer" class="acas-surface flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3 px-3 sm:px-3.5 py-2.5 rounded-xl border hover:border-[var(--primary)]">
+            <!-- Mobile Top Micro-Row: Module Badge on Left + Days & @channel on Right -->
+            <div class="flex sm:hidden items-center justify-between gap-2 w-full">
+              <span class="px-2 py-0.5 rounded-md text-[10px] font-semibold truncate" style="background-color:var(--primary-soft);color:var(--primary-text);">${badge}</span>
+              <div class="flex items-center gap-2 text-[11px] font-mono shrink-0">
+                <span class="font-semibold" style="color:${dayColor};">${dayText}</span>
+                <span class="truncate max-w-[130px]" style="color:var(--primary-text);">@${item.channelHandle}</span>
+              </div>
             </div>
-            <div class="shrink-0 text-right leading-tight">
+
+            <!-- Desktop Left Badge -->
+            <span class="hidden sm:inline-block shrink-0 w-28 text-center px-2 py-1 rounded-lg text-[11px] font-semibold truncate" style="background-color:var(--primary-soft);color:var(--primary-text);">${badge}</span>
+
+            <!-- Main Title & Facts (Full width on mobile, flex-1 on desktop) -->
+            <div class="min-w-0 flex-1 w-full">
+              <div class="text-xs sm:text-[13px] font-semibold leading-snug sm:truncate break-words">${item.title}</div>
+              <div class="flex flex-wrap gap-x-2.5 sm:gap-x-3 gap-y-1 text-[11px] mt-1 sm:mt-0.5" style="color:var(--muted);">${facts}</div>
+            </div>
+
+            <!-- Desktop Right Days & Channel -->
+            <div class="hidden sm:block shrink-0 text-right leading-tight">
               <div class="text-xs font-mono font-semibold" style="color:${dayColor};">${dayText}</div>
               <div class="text-[10px] font-mono truncate max-w-[110px]" style="color:var(--primary-text);">@${item.channelHandle}</div>
             </div>
@@ -1421,6 +1796,11 @@
       renderTreeFilters();
       renderFeed();
     }
+
+    try {
+      window.Telegram?.WebApp?.ready?.();
+      window.Telegram?.WebApp?.expand?.();
+    } catch {}
 
     checkExistingSession();
     renderAll();
