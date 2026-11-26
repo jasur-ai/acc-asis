@@ -1,0 +1,14 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users can only read/write their own 2FA-verified profile & module toggles
+    match /acas_users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    // Extracted structured insights indexed by moduleId
+    match /acas_insights/{insightId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+  }
+}
