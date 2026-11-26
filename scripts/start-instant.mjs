@@ -39,13 +39,8 @@ const PUBLIC_MINI_APP_URL =
     : 'https://acc-asis.vercel.app';
 
 const USERS_DB_FILE = path.resolve(process.cwd(), '.acas-users-db.json');
-// Legacy single-user files to clean up so one account is never shared globally
 const LEGACY_SESSION_FILE = path.resolve(process.cwd(), '.acas-session.json');
 const LEGACY_BACKUP_FILE = path.resolve(process.cwd(), '.acas-session.backup.json');
-try {
-  if (fs.existsSync(LEGACY_SESSION_FILE)) fs.unlinkSync(LEGACY_SESSION_FILE);
-  if (fs.existsSync(LEGACY_BACKUP_FILE)) fs.unlinkSync(LEGACY_BACKUP_FILE);
-} catch {}
 
 // Copy study-desk welcome photo to public/bot-banner.jpg
 const bannerDest = path.resolve(process.cwd(), 'public/bot-banner.jpg');
@@ -137,15 +132,49 @@ function checkIsAdminRecord(userKey, record) {
   return rawKeyId === ADMIN_TELEGRAM_ID || recTgId === ADMIN_TELEGRAM_ID;
 }
 
-function loadUserSession(userKey, clientSecret = '', incomingSessionString = '') {
-  if (!userKey) return null;
+function loadUserSession(userKey, _clientSecret = '', incomingSessionString = '') {
   const db = loadAllUsersDb();
-  const record = db.users[userKey];
-  if (!record || !record.sessionString) return null;
-  const secretMatches = clientSecret && record.clientSecret && clientSecret === record.clientSecret;
-  const tokenMatches = incomingSessionString && incomingSessionString === record.sessionString;
-  if (!secretMatches && !tokenMatches) return null;
-  return record;
+  if (userKey && db.users[userKey] && db.users[userKey].sessionString) {
+    return db.users[userKey];
+  }
+  // Agar foydalanuvchi o'z sessionString kalitini yuborgan bo'lsa, bazadan shu sessionString bo'yicha topib userKey'ga bog'laymiz
+  if (incomingSessionString && incomingSessionString.length > 20) {
+    const match = Object.values(db.users).find((u) => u && u.sessionString === incomingSessionString);
+    if (match) {
+      if (userKey) {
+        db.users[userKey] = { ...match, userKey };
+        saveAllUsersDb(db);
+      }
+      return match;
+    }
+  }
+  // Lokal kompyuterda (localhost:4000) bitta foydalanuvchi ishlaganda userKey o'zgarsa ham mavjud lokal sessiyani yo'qotmaymiz
+  if (!process.env.RENDER) {
+    const allLocalUsers = Object.values(db.users).filter((u) => u && u.sessionString);
+    if (allLocalUsers.length === 1) {
+      const single = allLocalUsers[0];
+      if (userKey && !db.users[userKey]) {
+        db.users[userKey] = { ...single, userKey };
+        saveAllUsersDb(db);
+      }
+      return single;
+    }
+    for (const legacyFile of [LEGACY_SESSION_FILE, LEGACY_BACKUP_FILE]) {
+      if (fs.existsSync(legacyFile)) {
+        try {
+          const leg = JSON.parse(fs.readFileSync(legacyFile, 'utf8'));
+          if (leg && leg.sessionString) {
+            if (userKey) {
+              db.users[userKey] = { ...leg, userKey };
+              saveAllUsersDb(db);
+            }
+            return leg;
+          }
+        } catch {}
+      }
+    }
+  }
+  return null;
 }
 
 function saveUserSession(userKey, data) {
@@ -984,15 +1013,9 @@ async function handleRequest(req, res) {
       }
     }
 
-    // Agar foydalanuvchining o'z userKey va o'z sessionString/clientSecret'i bo'lmasa —
-    // HECH QACHON boshqa odamning hisobini chiqarib bermaymiz!
-    if (!userKey || (!incomingToken && !clientSecret)) {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      return res.end(JSON.stringify({ ok: true, authenticated: false, reason: 'no_user_credentials' }));
-    }
-
+    // Foydalanuvchining userKey yoki sessionString kaliti bo'yicha sessiyani tekshiramiz va tiklaymiz
     const existingSaved = loadUserSession(userKey, clientSecret, incomingToken);
-    if ((!existingSaved || !existingSaved.sessionString) && incomingToken.length > 20) {
+    if ((!existingSaved || !existingSaved.sessionString) && incomingToken.length > 20 && userKey) {
       saveUserSession(userKey, {
         authenticated: true,
         userKey,
