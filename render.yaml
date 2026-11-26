@@ -1,0 +1,32 @@
+services:
+  # 1. Backend API + Telegram Bot + GramJS MTProto Worker (Render Free Tier)
+  - type: web
+    name: acc-asis-api-bot
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DB_PROVIDER
+        value: firebase
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_API_ID
+        sync: false
+      - key: TELEGRAM_API_HASH
+        sync: false
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+
+  # 2. Telegram Mini App Frontend (Render Free Static Site)
+  - type: web
+    name: acc-asis-miniapp
+    runtime: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
