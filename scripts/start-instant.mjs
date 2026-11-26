@@ -37,6 +37,7 @@ const PUBLIC_MINI_APP_URL =
     : 'https://acc-asis.vercel.app';
 
 const SESSION_FILE = path.resolve(process.cwd(), '.acas-session.json');
+const SESSION_BACKUP_FILE = path.resolve(process.cwd(), '.acas-session.backup.json');
 
 // Copy study-desk welcome photo to public/bot-banner.jpg
 const bannerDest = path.resolve(process.cwd(), 'public/bot-banner.jpg');
@@ -48,19 +49,57 @@ if (fs.existsSync(newWelcomeImg)) {
   } catch {}
 }
 
-// Persistent Session Store Helpers
+// Persistent Session Store Helpers (3-Layer Server Persistence: Primary File + Backup File + .env Base64)
 function loadSavedSession() {
-  if (!fs.existsSync(SESSION_FILE)) return null;
-  try {
-    return JSON.parse(fs.readFileSync(SESSION_FILE, 'utf8'));
-  } catch {
-    return null;
+  for (const file of [SESSION_FILE, SESSION_BACKUP_FILE]) {
+    if (fs.existsSync(file)) {
+      try {
+        const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
+        if (parsed && parsed.sessionString) return parsed;
+      } catch {}
+    }
   }
+  if (process.env.ACAS_PERSISTENT_SESSION_B64) {
+    try {
+      const decoded = Buffer.from(process.env.ACAS_PERSISTENT_SESSION_B64, 'base64').toString('utf8');
+      const parsed = JSON.parse(decoded);
+      if (parsed && parsed.sessionString) {
+        try {
+          fs.writeFileSync(SESSION_FILE, JSON.stringify(parsed, null, 2), 'utf8');
+        } catch {}
+        return parsed;
+      }
+    } catch {}
+  }
+  return null;
 }
 
 function savePersistentSession(data) {
+  if (!data || !data.sessionString) return;
   try {
-    fs.writeFileSync(SESSION_FILE, JSON.stringify(data, null, 2), 'utf8');
+    const jsonStr = JSON.stringify(data, null, 2);
+    fs.writeFileSync(SESSION_FILE, jsonStr, 'utf8');
+    fs.writeFileSync(SESSION_BACKUP_FILE, jsonStr, 'utf8');
+
+    // Also persist compact auth core into .env so version updates / restarts always preserve the login!
+    const compactCore = JSON.stringify({
+      authenticated: true,
+      sessionString: data.sessionString,
+      session: data.session,
+      selectedFolderIds: data.selectedFolderIds || ['all'],
+      enabledModules: data.enabledModules,
+    });
+    const b64 = Buffer.from(compactCore, 'utf8').toString('base64');
+    process.env.ACAS_PERSISTENT_SESSION_B64 = b64;
+    if (fs.existsSync(envPath)) {
+      let envContent = fs.readFileSync(envPath, 'utf8');
+      if (/^ACAS_PERSISTENT_SESSION_B64=/m.test(envContent)) {
+        envContent = envContent.replace(/^ACAS_PERSISTENT_SESSION_B64=.*$/m, `ACAS_PERSISTENT_SESSION_B64=${b64}`);
+      } else {
+        envContent = envContent.trimEnd() + `\nACAS_PERSISTENT_SESSION_B64=${b64}\n`;
+      }
+      fs.writeFileSync(envPath, envContent, 'utf8');
+    }
   } catch (e) {
     console.error('Session save error:', e.message);
   }
@@ -69,6 +108,14 @@ function savePersistentSession(data) {
 function clearPersistentSession() {
   try {
     if (fs.existsSync(SESSION_FILE)) fs.unlinkSync(SESSION_FILE);
+    if (fs.existsSync(SESSION_BACKUP_FILE)) fs.unlinkSync(SESSION_BACKUP_FILE);
+    delete process.env.ACAS_PERSISTENT_SESSION_B64;
+    if (fs.existsSync(envPath)) {
+      const envContent = fs
+        .readFileSync(envPath, 'utf8')
+        .replace(/^ACAS_PERSISTENT_SESSION_B64=.*\r?\n?/gm, '');
+      fs.writeFileSync(envPath, envContent, 'utf8');
+    }
   } catch {}
 }
 
@@ -325,19 +372,36 @@ async function getGramJs() {
 }
 
 /**
- * Reconnects saved StringSession from disk if user hasn't logged out
+ * Reconnects saved StringSession from disk (or incoming client header/token)
+ * NEVER deletes the saved session on temporary network errors or version updates!
  */
-async function getOrRestoreAuthenticatedClient() {
+async function getOrRestoreAuthenticatedClient(incomingSessionString = '', incomingSessionMeta = null) {
   if (activeConnectedClient) {
     try {
-      const ok = await activeConnectedClient.isUserAuthorized();
-      if (ok) return activeConnectedClient;
+      if (activeConnectedClient.connected) return activeConnectedClient;
+      await activeConnectedClient.connect();
+      return activeConnectedClient;
     } catch {}
     activeConnectedClient = null;
   }
-  const saved = loadSavedSession();
-  if (!saved || !saved.sessionString || String(saved.sessionString).trim().length < 20) {
+
+  let saved = loadSavedSession();
+  const candidateToken = String(incomingSessionString || saved?.sessionString || '').trim();
+  if (!candidateToken || candidateToken.length < 20) {
     return null;
+  }
+
+  // If server restarted or updated and client sent its saved sessionString, heal server disk automatically!
+  if (!saved || !saved.sessionString) {
+    saved = {
+      authenticated: true,
+      sessionString: candidateToken,
+      session: incomingSessionMeta || { phoneNumber: 'Ulangan hisob', firstName: 'Profil', twoFactorVerified: true },
+      folders: [],
+      chats: [],
+      selectedFolderIds: ['all'],
+    };
+    savePersistentSession(saved);
   }
 
   const g = await getGramJs();
@@ -347,11 +411,11 @@ async function getOrRestoreAuthenticatedClient() {
     const apiId = Number(process.env.TELEGRAM_API_ID || 2040);
     const apiHash = process.env.TELEGRAM_API_HASH || 'b18441a1ff607e10a989891a5462e627';
     const client = new g.TelegramClient(
-      new g.StringSession(saved.sessionString),
+      new g.StringSession(candidateToken),
       apiId,
       apiHash,
       {
-        connectionRetries: 3,
+        connectionRetries: 5,
         deviceModel: 'acc.asis Desktop',
         systemVersion: 'Windows 11',
         appVersion: '4.16.8 x64',
@@ -360,16 +424,28 @@ async function getOrRestoreAuthenticatedClient() {
       }
     );
     await client.connect();
-    const isAuth = await client.isUserAuthorized().catch(() => false);
-    if (!isAuth) {
-      await client.disconnect().catch(() => {});
-      clearPersistentSession();
-      return null;
-    }
     activeConnectedClient = client;
+
+    // If session metadata lacked firstName, enrich it quietly without failing
+    if (!saved.session?.firstName || saved.session.firstName === 'Profil') {
+      try {
+        const me = await client.getMe();
+        if (me) {
+          saved.session = {
+            ...saved.session,
+            phoneNumber: saved.session?.phoneNumber || (me.phone ? `+${me.phone}` : '2FA Hisob'),
+            firstName: [me.firstName, me.lastName].filter(Boolean).join(' ') || 'Profil',
+            username: me.username || '',
+            twoFactorVerified: true,
+          };
+          savePersistentSession(saved);
+        }
+      } catch {}
+    }
+
     return client;
   } catch (e) {
-    console.error('Restore session error:', e.message);
+    console.error('Restore session note (session preserved):', e.message);
     return null;
   }
 }
@@ -766,7 +842,7 @@ async function fetchFoldersAndScanChannels(
 async function handleRequest(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Acas-Session');
   res.setHeader('Access-Control-Allow-Private-Network', 'true');
 
   if (req.method === 'OPTIONS') {
@@ -821,17 +897,26 @@ async function handleRequest(req, res) {
       });
     });
 
-  // Check persistent session on page load (Auto-login until user clicks Log Out!)
+  const headerToken = String(req.headers['x-acas-session'] || url.searchParams.get('token') || '').trim();
+
+  // Check persistent session on page load (Auto-login & Auto-heal across version updates!)
   if (url.pathname === '/api/auth/session' && (req.method === 'GET' || req.method === 'POST')) {
+    let incomingToken = headerToken;
+    let incomingMeta = null;
     if (req.method === 'POST') {
       const body = await readJson();
+      if (body?.sessionString && String(body.sessionString).length > 20) {
+        incomingToken = String(body.sessionString).trim();
+        incomingMeta = body.session || null;
+      }
       const savedNow = loadSavedSession();
-      if ((!savedNow || !savedNow.sessionString) && body?.sessionString && String(body.sessionString).length > 20) {
+      if ((!savedNow || !savedNow.sessionString) && incomingToken.length > 20) {
         savePersistentSession({
           authenticated: true,
-          sessionString: String(body.sessionString),
-          session: body.session || {},
+          sessionString: incomingToken,
+          session: body.session || { phoneNumber: 'Ulangan hisob', firstName: 'Profil', twoFactorVerified: true },
           folders: body.folders || [],
+          chats: body.chats || [],
           selectedFolderIds: body.selectedFolderIds || ['all'],
           enabledModules: body.enabledModules,
           insights: body.insights || [],
@@ -839,26 +924,29 @@ async function handleRequest(req, res) {
       }
     }
 
+    const client = await getOrRestoreAuthenticatedClient(incomingToken, incomingMeta);
     const saved = loadSavedSession();
-    const client = await getOrRestoreAuthenticatedClient();
-    if (!saved || !saved.authenticated || !client) {
-      clearPersistentSession();
+
+    // Agar diskda yoki brauzerdan kelgan token mavjud bo'lsa — versiya yangilanganda ham ASLO chiqarib yubormaymiz!
+    if (!saved || !saved.sessionString) {
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      return res.end(JSON.stringify({ ok: true, authenticated: false, reason: 'no_active_mtproto_session' }));
+      return res.end(JSON.stringify({ ok: true, authenticated: false, reason: 'no_saved_session' }));
     }
 
     let folders = saved.folders || [];
     let chats = saved.chats || [];
-    try {
-      const fd = await fetchFolderData(client);
-      folders = publicFolders(fd);
-      chats = fd.chats;
-      savePersistentSession({
-        ...saved,
-        folders,
-        chats,
-      });
-    } catch {}
+    if (client) {
+      try {
+        const fd = await fetchFolderData(client, false);
+        folders = publicFolders(fd);
+        chats = fd.chats;
+        savePersistentSession({
+          ...saved,
+          folders,
+          chats,
+        });
+      } catch {}
+    }
 
     res.writeHead(200, { 'Content-Type': 'application/json' });
     return res.end(
@@ -876,7 +964,7 @@ async function handleRequest(req, res) {
     );
   }
 
-  // Explicit Log Out endpoint
+  // Explicit Log Out endpoint — FAQAT foydalanuvchi o'zi "Log Out (Chiqish)" tugmasini bosgandagina ishlaydi!
   if (url.pathname === '/api/auth/logout' && req.method === 'POST') {
     try {
       if (activeConnectedClient) {
@@ -891,23 +979,26 @@ async function handleRequest(req, res) {
     clearPersistentSession();
     clearMemoryCaches();
     clientMap.clear();
-    console.log('🔒 [Log Out] Foydalanuvchi hisobdan chiqdi, sessiya tozalandi.');
+    console.log('🔒 [Log Out] Foydalanuvchi o‘z xohishi bilan hisobdan chiqdi, sessiya tozalandi.');
     res.writeHead(200, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({ ok: true, message: 'Hisobdan muvaffaqiyatli chiqildi.' }));
   }
 
   // Papkalar + alohida kanallar ro'yxati (Profil va Asosiy ekran uchun)
   if (url.pathname === '/api/folders' && req.method === 'GET') {
-    const client = await getOrRestoreAuthenticatedClient();
+    const client = await getOrRestoreAuthenticatedClient(headerToken);
+    const saved = loadSavedSession();
     if (!client) {
-      clearPersistentSession();
-      res.writeHead(401, { 'Content-Type': 'application/json' });
-      return res.end(JSON.stringify({ ok: false, authRequired: true, message: 'Faol Telegram sessiyasi topilmadi. Iltimos, raqamingiz bilan qayta kiring.' }));
+      if (saved && saved.folders) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ ok: true, folders: saved.folders || [], chats: saved.chats || [] }));
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ ok: false, message: 'Telegram bilan qayta ulanilmoqda...' }));
     }
     try {
       const force = url.searchParams.get('refresh') === '1';
       const fd = await fetchFolderData(client, force);
-      const saved = loadSavedSession();
       if (saved) {
         savePersistentSession({ ...saved, folders: publicFolders(fd), chats: fd.chats });
       }
@@ -941,10 +1032,9 @@ async function handleRequest(req, res) {
     let aborted = false;
     req.on('close', () => (aborted = true));
 
-    const client = await getOrRestoreAuthenticatedClient();
+    const client = await getOrRestoreAuthenticatedClient(headerToken);
     if (!client) {
-      clearPersistentSession();
-      send('auth-required', { message: 'Faol Telegram sessiyasi topilmadi. Raqamingiz bilan qayta ulaning.' });
+      send('scan-error', { message: 'Server qayta ulanmoqda, 2 soniyadan so‘ng Skanerlashni bosing.' });
       return res.end();
     }
 
