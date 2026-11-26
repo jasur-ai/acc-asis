@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/**
+ * Native Telegram Light (Day) & Dark (Night) Theme Tokens
+ * Default is Telegram Day Mode (clean, readable, official Telegram colors);
+ * Dark mode uses official Telegram Night Slate (#17212B / #232E3C), never pitch black.
+ */
+:root {
+  --tg-bg: #F1F4F8;
+  --tg-surface: #FFFFFF;
+  --tg-surface-alt: #F7F9FB;
+  --tg-border: #E2E8F0;
+  --tg-text: #111827;
+  --tg-muted: #64748B;
+  --tg-primary: #2481CC;
+  --tg-primary-hover: #1D6FA5;
+  --tg-primary-soft: rgba(36, 129, 204, 0.1);
+}
+
+html.dark {
+  --tg-bg: #17212B;
+  --tg-surface: #232E3C;
+  --tg-surface-alt: #1C2733;
+  --tg-border: #2F3D4F;
+  --tg-text: #F5F5F5;
+  --tg-muted: #8A9AA9;
+  --tg-primary: #2AABEE;
+  --tg-primary-hover: #229ED9;
+  --tg-primary-soft: rgba(42, 171, 238, 0.14);
+}
+
+@layer base {
+  body {
+    background-color: var(--tg-bg);
+    color: var(--tg-text);
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
