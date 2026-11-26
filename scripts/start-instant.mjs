@@ -31,13 +31,21 @@ function eqIdx(s) { return s.indexOf('=') + 1; }
 function trimmedVal(s, eq) { return s.slice(eq + 1).trim(); }
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '9255052797:AAGxcxThaNc7NZqPZh0OD79rZL-Ibi8clrs';
+const ADMIN_TELEGRAM_ID = '8004724563';
+const SERVER_STARTED_AT = Date.now();
 const PUBLIC_MINI_APP_URL =
   process.env.MINI_APP_URL && process.env.MINI_APP_URL.startsWith('https://')
     ? process.env.MINI_APP_URL
     : 'https://acc-asis.vercel.app';
 
-const SESSION_FILE = path.resolve(process.cwd(), '.acas-session.json');
-const SESSION_BACKUP_FILE = path.resolve(process.cwd(), '.acas-session.backup.json');
+const USERS_DB_FILE = path.resolve(process.cwd(), '.acas-users-db.json');
+// Legacy single-user files to clean up so one account is never shared globally
+const LEGACY_SESSION_FILE = path.resolve(process.cwd(), '.acas-session.json');
+const LEGACY_BACKUP_FILE = path.resolve(process.cwd(), '.acas-session.backup.json');
+try {
+  if (fs.existsSync(LEGACY_SESSION_FILE)) fs.unlinkSync(LEGACY_SESSION_FILE);
+  if (fs.existsSync(LEGACY_BACKUP_FILE)) fs.unlinkSync(LEGACY_BACKUP_FILE);
+} catch {}
 
 // Copy study-desk welcome photo to public/bot-banner.jpg
 const bannerDest = path.resolve(process.cwd(), 'public/bot-banner.jpg');
@@ -49,74 +57,117 @@ if (fs.existsSync(newWelcomeImg)) {
   } catch {}
 }
 
-// Persistent Session Store Helpers (3-Layer Server Persistence: Primary File + Backup File + .env Base64)
-function loadSavedSession() {
-  for (const file of [SESSION_FILE, SESSION_BACKUP_FILE]) {
-    if (fs.existsSync(file)) {
-      try {
-        const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
-        if (parsed && parsed.sessionString) return parsed;
-      } catch {}
-    }
+// Multi-User Isolated Session Store + Admin Telemetry (Admin ID: 8004724563)
+function loadAllUsersDb() {
+  if (!fs.existsSync(USERS_DB_FILE)) {
+    return { users: {}, botVisitors: {}, dailyActivity: {} };
   }
-  if (process.env.ACAS_PERSISTENT_SESSION_B64) {
-    try {
-      const decoded = Buffer.from(process.env.ACAS_PERSISTENT_SESSION_B64, 'base64').toString('utf8');
-      const parsed = JSON.parse(decoded);
-      if (parsed && parsed.sessionString) {
-        try {
-          fs.writeFileSync(SESSION_FILE, JSON.stringify(parsed, null, 2), 'utf8');
-        } catch {}
-        return parsed;
-      }
-    } catch {}
+  try {
+    const parsed = JSON.parse(fs.readFileSync(USERS_DB_FILE, 'utf8'));
+    return {
+      users: parsed && typeof parsed.users === 'object' ? parsed.users : {},
+      botVisitors: parsed && typeof parsed.botVisitors === 'object' ? parsed.botVisitors : {},
+      dailyActivity: parsed && typeof parsed.dailyActivity === 'object' ? parsed.dailyActivity : {},
+    };
+  } catch {
+    return { users: {}, botVisitors: {}, dailyActivity: {} };
   }
-  return null;
 }
 
-function savePersistentSession(data) {
-  if (!data || !data.sessionString) return;
+function saveAllUsersDb(db) {
   try {
-    const jsonStr = JSON.stringify(data, null, 2);
-    fs.writeFileSync(SESSION_FILE, jsonStr, 'utf8');
-    fs.writeFileSync(SESSION_BACKUP_FILE, jsonStr, 'utf8');
-
-    // Also persist compact auth core into .env so version updates / restarts always preserve the login!
-    const compactCore = JSON.stringify({
-      authenticated: true,
-      sessionString: data.sessionString,
-      session: data.session,
-      selectedFolderIds: data.selectedFolderIds || ['all'],
-      enabledModules: data.enabledModules,
-    });
-    const b64 = Buffer.from(compactCore, 'utf8').toString('base64');
-    process.env.ACAS_PERSISTENT_SESSION_B64 = b64;
-    if (fs.existsSync(envPath)) {
-      let envContent = fs.readFileSync(envPath, 'utf8');
-      if (/^ACAS_PERSISTENT_SESSION_B64=/m.test(envContent)) {
-        envContent = envContent.replace(/^ACAS_PERSISTENT_SESSION_B64=.*$/m, `ACAS_PERSISTENT_SESSION_B64=${b64}`);
-      } else {
-        envContent = envContent.trimEnd() + `\nACAS_PERSISTENT_SESSION_B64=${b64}\n`;
-      }
-      fs.writeFileSync(envPath, envContent, 'utf8');
-    }
+    fs.writeFileSync(USERS_DB_FILE, JSON.stringify(db, null, 2), 'utf8');
   } catch (e) {
-    console.error('Session save error:', e.message);
+    console.error('Users DB save error:', e.message);
   }
 }
 
-function clearPersistentSession() {
-  try {
-    if (fs.existsSync(SESSION_FILE)) fs.unlinkSync(SESSION_FILE);
-    if (fs.existsSync(SESSION_BACKUP_FILE)) fs.unlinkSync(SESSION_BACKUP_FILE);
-    delete process.env.ACAS_PERSISTENT_SESSION_B64;
-    if (fs.existsSync(envPath)) {
-      const envContent = fs
-        .readFileSync(envPath, 'utf8')
-        .replace(/^ACAS_PERSISTENT_SESSION_B64=.*\r?\n?/gm, '');
-      fs.writeFileSync(envPath, envContent, 'utf8');
-    }
-  } catch {}
+function todayKey() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function recordBotVisitor(fromUser) {
+  if (!fromUser || !fromUser.id) return;
+  const db = loadAllUsersDb();
+  const id = String(fromUser.id);
+  const prev = db.botVisitors[id] || {};
+  db.botVisitors[id] = {
+    telegramId: id,
+    firstName: [fromUser.first_name, fromUser.last_name].filter(Boolean).join(' ') || 'Foydalanuvchi',
+    username: fromUser.username || prev.username || '',
+    firstSeenAt: prev.firstSeenAt || Date.now(),
+    lastSeenAt: Date.now(),
+    startsCount: (prev.startsCount || 0) + 1,
+  };
+  saveAllUsersDb(db);
+}
+
+function recordScanTelemetry(userKey, messagesRead, insightsFound, elapsedMs) {
+  const db = loadAllUsersDb();
+  const tk = todayKey();
+  const dayRec = db.dailyActivity[tk] || {
+    scans: 0,
+    messagesRead: 0,
+    insightsFound: 0,
+    activeUserKeys: [],
+  };
+  dayRec.scans = (dayRec.scans || 0) + 1;
+  dayRec.messagesRead = (dayRec.messagesRead || 0) + messagesRead;
+  dayRec.insightsFound = (dayRec.insightsFound || 0) + insightsFound;
+  if (userKey && !dayRec.activeUserKeys.includes(userKey)) {
+    dayRec.activeUserKeys.push(userKey);
+  }
+  db.dailyActivity[tk] = dayRec;
+
+  if (userKey && db.users[userKey]) {
+    db.users[userKey].scansCount = (db.users[userKey].scansCount || 0) + 1;
+    db.users[userKey].lastScanElapsedMs = elapsedMs;
+    db.users[userKey].updatedAt = Date.now();
+  }
+  saveAllUsersDb(db);
+}
+
+function checkIsAdminRecord(userKey, record) {
+  const rawKeyId = String(userKey || '').replace(/^tg_/, '').trim();
+  const recTgId = String(record?.session?.telegramId || '').trim();
+  return rawKeyId === ADMIN_TELEGRAM_ID || recTgId === ADMIN_TELEGRAM_ID;
+}
+
+function loadUserSession(userKey, clientSecret = '', incomingSessionString = '') {
+  if (!userKey) return null;
+  const db = loadAllUsersDb();
+  const record = db.users[userKey];
+  if (!record || !record.sessionString) return null;
+  const secretMatches = clientSecret && record.clientSecret && clientSecret === record.clientSecret;
+  const tokenMatches = incomingSessionString && incomingSessionString === record.sessionString;
+  if (!secretMatches && !tokenMatches) return null;
+  return record;
+}
+
+function saveUserSession(userKey, data) {
+  if (!userKey || !data || !data.sessionString) return;
+  const db = loadAllUsersDb();
+  const prev = db.users[userKey] || {};
+  db.users[userKey] = {
+    ...prev,
+    ...data,
+    createdAt: prev.createdAt || Date.now(),
+    updatedAt: Date.now(),
+  };
+  saveAllUsersDb(db);
+}
+
+function clearUserSession(userKey) {
+  if (!userKey) return;
+  const db = loadAllUsersDb();
+  if (db.users[userKey]) {
+    delete db.users[userKey];
+    saveAllUsersDb(db);
+  }
 }
 
 // 2. Live-Reload SSE clients
@@ -203,6 +254,7 @@ async function pollTelegramBot() {
 
           const msg = upd.message;
           if (msg && msg.text && msg.text.startsWith('/start')) {
+            recordBotVisitor(msg.from);
             const chatId = msg.chat.id;
             const rawName = msg.from?.first_name || 'Foydalanuvchi';
             const safeName = String(rawName).replace(/[<>&]/g, '');
@@ -329,16 +381,19 @@ async function pollTelegramBot() {
   }
 }
 
-// 4. Real GramJS MTProto Loader + Ultra-Fast In-Memory Caches
+// 4. Real GramJS MTProto Loader + Multi-User Isolated Caches
 let gramJsModule = null;
-const clientMap = new Map();
-let activeConnectedClient = null;
-let folderDataCache = { ts: 0, data: null };
-const channelHistoryCache = new Map(); // chatId -> { ts, msgs }
+const clientMap = new Map(); // pending login: `${userKey}:${phone}` -> { client, phoneCodeHash }
+const userClientsMap = new Map(); // userKey -> { client, sessionString }
+const userFolderCacheMap = new Map(); // userKey -> { ts, data }
+const userChannelHistoryCache = new Map(); // `${userKey}:${chatId}` -> { ts, msgs }
 
-function clearMemoryCaches() {
-  folderDataCache = { ts: 0, data: null };
-  channelHistoryCache.clear();
+function clearUserMemoryCaches(userKey) {
+  if (!userKey) return;
+  userFolderCacheMap.delete(userKey);
+  for (const k of userChannelHistoryCache.keys()) {
+    if (k.startsWith(`${userKey}:`)) userChannelHistoryCache.delete(k);
+  }
 }
 
 async function getGramJs() {
@@ -372,36 +427,40 @@ async function getGramJs() {
 }
 
 /**
- * Reconnects saved StringSession from disk (or incoming client header/token)
- * NEVER deletes the saved session on temporary network errors or version updates!
+ * Reconnects the specific user's saved StringSession (strictly isolated per userKey!)
  */
-async function getOrRestoreAuthenticatedClient(incomingSessionString = '', incomingSessionMeta = null) {
-  if (activeConnectedClient) {
-    try {
-      if (activeConnectedClient.connected) return activeConnectedClient;
-      await activeConnectedClient.connect();
-      return activeConnectedClient;
-    } catch {}
-    activeConnectedClient = null;
-  }
+async function getOrRestoreAuthenticatedClient(userKey, clientSecret = '', incomingSessionString = '', incomingSessionMeta = null) {
+  if (!userKey) return null;
 
-  let saved = loadSavedSession();
+  let saved = loadUserSession(userKey, clientSecret, incomingSessionString);
   const candidateToken = String(incomingSessionString || saved?.sessionString || '').trim();
   if (!candidateToken || candidateToken.length < 20) {
     return null;
   }
 
-  // If server restarted or updated and client sent its saved sessionString, heal server disk automatically!
+  const existingConn = userClientsMap.get(userKey);
+  if (existingConn && existingConn.client && existingConn.sessionString === candidateToken) {
+    try {
+      if (existingConn.client.connected) return existingConn.client;
+      await existingConn.client.connect();
+      return existingConn.client;
+    } catch {}
+    userClientsMap.delete(userKey);
+  }
+
+  // If server restarted or updated and this user sent their own valid sessionString, restore their record!
   if (!saved || !saved.sessionString) {
     saved = {
       authenticated: true,
+      userKey,
+      clientSecret: clientSecret || `sec_${Date.now()}_${Math.random().toString(36).slice(2)}`,
       sessionString: candidateToken,
       session: incomingSessionMeta || { phoneNumber: 'Ulangan hisob', firstName: 'Profil', twoFactorVerified: true },
       folders: [],
       chats: [],
       selectedFolderIds: ['all'],
     };
-    savePersistentSession(saved);
+    saveUserSession(userKey, saved);
   }
 
   const g = await getGramJs();
@@ -416,7 +475,7 @@ async function getOrRestoreAuthenticatedClient(incomingSessionString = '', incom
       apiHash,
       {
         connectionRetries: 5,
-        deviceModel: 'acc.asis Desktop',
+        deviceModel: 'acc.asis Multi-User Agent',
         systemVersion: 'Windows 11',
         appVersion: '4.16.8 x64',
         langCode: 'en',
@@ -424,28 +483,31 @@ async function getOrRestoreAuthenticatedClient(incomingSessionString = '', incom
       }
     );
     await client.connect();
-    activeConnectedClient = client;
+    userClientsMap.set(userKey, { client, sessionString: candidateToken });
 
-    // If session metadata lacked firstName, enrich it quietly without failing
-    if (!saved.session?.firstName || saved.session.firstName === 'Profil') {
+    if (!saved.session?.firstName || saved.session.firstName === 'Profil' || !saved.session?.telegramId) {
       try {
         const me = await client.getMe();
         if (me) {
+          const tgId = String(me.id || '').replace(/^-/, '').trim();
+          const isAdmin = tgId === ADMIN_TELEGRAM_ID || String(userKey).replace(/^tg_/, '') === ADMIN_TELEGRAM_ID;
           saved.session = {
             ...saved.session,
+            telegramId: tgId,
+            isAdmin,
             phoneNumber: saved.session?.phoneNumber || (me.phone ? `+${me.phone}` : '2FA Hisob'),
             firstName: [me.firstName, me.lastName].filter(Boolean).join(' ') || 'Profil',
             username: me.username || '',
             twoFactorVerified: true,
           };
-          savePersistentSession(saved);
+          saveUserSession(userKey, saved);
         }
       } catch {}
     }
 
     return client;
   } catch (e) {
-    console.error('Restore session note (session preserved):', e.message);
+    console.error(`Restore session note [${userKey}]:`, e.message);
     return null;
   }
 }
@@ -838,11 +900,14 @@ async function fetchFoldersAndScanChannels(
   };
 }
 
-// 6. Local & Cloud HTTP Server Handler
+// 6. Local & Cloud Multi-User HTTP Server Handler
 async function handleRequest(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Acas-Session');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'Content-Type, X-Acas-Session, X-Acas-User-Key, X-Acas-Secret'
+  );
   res.setHeader('Access-Control-Allow-Private-Network', 'true');
 
   if (req.method === 'OPTIONS') {
@@ -854,7 +919,7 @@ async function handleRequest(req, res) {
 
   if (url.pathname === '/api/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    return res.end(JSON.stringify({ ok: true, mode: process.env.RENDER ? 'render-cloud' : 'local-pc' }));
+    return res.end(JSON.stringify({ ok: true, mode: process.env.RENDER ? 'render-cloud' : 'local-pc', multiUser: true }));
   }
 
   if (url.pathname === '/api/live-reload') {
@@ -898,49 +963,66 @@ async function handleRequest(req, res) {
     });
 
   const headerToken = String(req.headers['x-acas-session'] || url.searchParams.get('token') || '').trim();
+  const headerUserKey = String(req.headers['x-acas-user-key'] || url.searchParams.get('userKey') || '').trim();
+  const headerSecret = String(req.headers['x-acas-secret'] || url.searchParams.get('secret') || '').trim();
 
-  // Check persistent session on page load (Auto-login & Auto-heal across version updates!)
+  // Check persistent session on page load — STRICTLY ISOLATED PER USER (userKey + clientSecret/sessionString)!
   if (url.pathname === '/api/auth/session' && (req.method === 'GET' || req.method === 'POST')) {
+    let userKey = headerUserKey;
+    let clientSecret = headerSecret;
     let incomingToken = headerToken;
     let incomingMeta = null;
+    let body = {};
+
     if (req.method === 'POST') {
-      const body = await readJson();
+      body = await readJson();
+      if (body?.userKey) userKey = String(body.userKey).trim();
+      if (body?.clientSecret) clientSecret = String(body.clientSecret).trim();
       if (body?.sessionString && String(body.sessionString).length > 20) {
         incomingToken = String(body.sessionString).trim();
         incomingMeta = body.session || null;
       }
-      const savedNow = loadSavedSession();
-      if ((!savedNow || !savedNow.sessionString) && incomingToken.length > 20) {
-        savePersistentSession({
-          authenticated: true,
-          sessionString: incomingToken,
-          session: body.session || { phoneNumber: 'Ulangan hisob', firstName: 'Profil', twoFactorVerified: true },
-          folders: body.folders || [],
-          chats: body.chats || [],
-          selectedFolderIds: body.selectedFolderIds || ['all'],
-          enabledModules: body.enabledModules,
-          insights: body.insights || [],
-        });
-      }
     }
 
-    const client = await getOrRestoreAuthenticatedClient(incomingToken, incomingMeta);
-    const saved = loadSavedSession();
+    // Agar foydalanuvchining o'z userKey va o'z sessionString/clientSecret'i bo'lmasa —
+    // HECH QACHON boshqa odamning hisobini chiqarib bermaymiz!
+    if (!userKey || (!incomingToken && !clientSecret)) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ ok: true, authenticated: false, reason: 'no_user_credentials' }));
+    }
 
-    // Agar diskda yoki brauzerdan kelgan token mavjud bo'lsa — versiya yangilanganda ham ASLO chiqarib yubormaymiz!
+    const existingSaved = loadUserSession(userKey, clientSecret, incomingToken);
+    if ((!existingSaved || !existingSaved.sessionString) && incomingToken.length > 20) {
+      saveUserSession(userKey, {
+        authenticated: true,
+        userKey,
+        clientSecret: clientSecret || `sec_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+        sessionString: incomingToken,
+        session: body.session || { phoneNumber: 'Ulangan hisob', firstName: 'Profil', twoFactorVerified: true },
+        folders: body.folders || [],
+        chats: body.chats || [],
+        selectedFolderIds: body.selectedFolderIds || ['all'],
+        enabledModules: body.enabledModules,
+        insights: body.insights || [],
+      });
+    }
+
+    const client = await getOrRestoreAuthenticatedClient(userKey, clientSecret, incomingToken, incomingMeta);
+    const saved = loadUserSession(userKey, clientSecret, incomingToken);
+
     if (!saved || !saved.sessionString) {
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      return res.end(JSON.stringify({ ok: true, authenticated: false, reason: 'no_saved_session' }));
+      return res.end(JSON.stringify({ ok: true, authenticated: false, reason: 'no_saved_session_for_user' }));
     }
 
     let folders = saved.folders || [];
     let chats = saved.chats || [];
     if (client) {
       try {
-        const fd = await fetchFolderData(client, false);
+        const fd = await fetchFolderData(client, false, userKey);
         folders = publicFolders(fd);
         chats = fd.chats;
-        savePersistentSession({
+        saveUserSession(userKey, {
           ...saved,
           folders,
           chats,
@@ -948,11 +1030,17 @@ async function handleRequest(req, res) {
       } catch {}
     }
 
+    const isAdmin = checkIsAdminRecord(userKey, saved);
+    if (saved.session) saved.session.isAdmin = isAdmin;
+
     res.writeHead(200, { 'Content-Type': 'application/json' });
     return res.end(
       JSON.stringify({
         ok: true,
         authenticated: true,
+        isAdmin,
+        userKey,
+        clientSecret: saved.clientSecret,
         sessionString: saved.sessionString,
         session: saved.session,
         folders,
@@ -964,30 +1052,221 @@ async function handleRequest(req, res) {
     );
   }
 
-  // Explicit Log Out endpoint — FAQAT foydalanuvchi o'zi "Log Out (Chiqish)" tugmasini bosgandagina ishlaydi!
+  // ADMIN ANALYTICS & VISUALIZATION ENDPOINT — STRICTLY FOR ADMIN ID 8004724563 ONLY!
+  if (url.pathname === '/api/admin/stats' && req.method === 'GET') {
+    const callerRecord = loadUserSession(headerUserKey, headerSecret, headerToken);
+    const isCallerAdmin = checkIsAdminRecord(headerUserKey, callerRecord);
+
+    if (!isCallerAdmin) {
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      return res.end(
+        JSON.stringify({
+          ok: false,
+          message: 'Ruxsat rad etildi. Ushbu bo‘lim faqat Admin (ID: 8004724563) uchun.',
+        })
+      );
+    }
+
+    const db = loadAllUsersDb();
+    const userRecords = Object.values(db.users || {}).filter((u) => u && u.session);
+    const botVisitorRecords = Object.values(db.botVisitors || {});
+    const now = Date.now();
+
+    let totalChannels = 0;
+    let totalMessagesScanned = 0;
+    let totalInsightsFound = 0;
+    let totalScansRun = 0;
+    let scanSpeedSum = 0;
+    let scanSpeedCount = 0;
+    let active24hUsers = 0;
+
+    const moduleCounts = {
+      events: 0,
+      conferences: 0,
+      volunteering: 0,
+      scholarships: 0,
+      competitions: 0,
+    };
+    const moduleEnabledByUsers = {
+      events: 0,
+      conferences: 0,
+      volunteering: 0,
+      scholarships: 0,
+      competitions: 0,
+    };
+    const channelStatsMap = new Map();
+
+    const usersList = userRecords
+      .map((u) => {
+        const s = u.session || {};
+        const chCount = (u.chats || []).length || s.connectedChannelsCount || 0;
+        const msgCount = s.scannedMessagesCount || 0;
+        const ins = Array.isArray(u.insights) ? u.insights : [];
+        const uAt = u.updatedAt || u.createdAt || now;
+        const isOnline = userClientsMap.has(u.userKey);
+        if (now - uAt <= 86400 * 1000) active24hUsers++;
+
+        totalChannels += chCount;
+        totalMessagesScanned += msgCount;
+        totalInsightsFound += ins.length;
+        totalScansRun += u.scansCount || (ins.length > 0 ? 1 : 0);
+
+        if (u.lastScanElapsedMs && u.lastScanElapsedMs > 0) {
+          scanSpeedSum += u.lastScanElapsedMs;
+          scanSpeedCount++;
+        }
+
+        const em = u.enabledModules || {
+          events: true,
+          conferences: true,
+          volunteering: true,
+          scholarships: true,
+          competitions: true,
+        };
+        for (const k of Object.keys(moduleEnabledByUsers)) {
+          if (em[k]) moduleEnabledByUsers[k]++;
+        }
+
+        for (const item of ins) {
+          if (item?.moduleId && moduleCounts[item.moduleId] !== undefined) {
+            moduleCounts[item.moduleId]++;
+          }
+          const h = item?.channelHandle || 'canal';
+          const prevCh = channelStatsMap.get(h) || {
+            handle: h,
+            title: item?.channelTitle || h,
+            count: 0,
+          };
+          prevCh.count++;
+          channelStatsMap.set(h, prevCh);
+        }
+
+        return {
+          userKey: u.userKey,
+          telegramId: s.telegramId || String(u.userKey || '').replace(/^tg_/, ''),
+          firstName: s.firstName || 'Foydalanuvchi',
+          username: s.username || '',
+          phoneNumber: s.phoneNumber || '',
+          channelsCount: chCount,
+          foldersCount: (u.folders || []).length,
+          messagesRead: msgCount,
+          insightsCount: ins.length,
+          scansCount: u.scansCount || 1,
+          lastScanMs: u.lastScanElapsedMs || 0,
+          updatedAt: uAt,
+          isOnline,
+          isAdmin: checkIsAdminRecord(u.userKey, u),
+        };
+      })
+      .sort((a, b) => b.updatedAt - a.updatedAt);
+
+    // 7-day activity series for visual SVG chart
+    const dailySeries = [];
+    const uzDayNames = ['Yak', 'Dush', 'Sesh', 'Chor', 'Pay', 'Jum', 'Shan'];
+    for (let i = 6; i >= 0; i--) {
+      const dt = new Date(now - i * 86400 * 1000);
+      const y = dt.getFullYear();
+      const m = String(dt.getMonth() + 1).padStart(2, '0');
+      const day = String(dt.getDate()).padStart(2, '0');
+      const dKey = `${y}-${m}-${day}`;
+      const rec = db.dailyActivity?.[dKey] || {};
+      const isToday = i === 0;
+      dailySeries.push({
+        date: dKey,
+        label: `${uzDayNames[dt.getDay()]} (${day}.${m})`,
+        activeUsers: Array.isArray(rec.activeUserKeys)
+          ? Math.max(rec.activeUserKeys.length, isToday ? active24hUsers : 0)
+          : isToday
+          ? active24hUsers
+          : 0,
+        scans: rec.scans || (isToday ? totalScansRun : 0),
+        messagesRead: rec.messagesRead || (isToday ? totalMessagesScanned : 0),
+        insightsFound: rec.insightsFound || (isToday ? totalInsightsFound : 0),
+      });
+    }
+
+    const MODULE_LABELS = {
+      events: 'Tadbirlar va Musobaqalar',
+      conferences: 'Ilmiy Anjuman va Maqolalar',
+      volunteering: 'Volontyorlik',
+      scholarships: 'Stipendiya & Exchange',
+      competitions: 'Tanlovlar',
+    };
+    const moduleBreakdown = Object.keys(MODULE_LABELS).map((id) => {
+      const cnt = moduleCounts[id] || 0;
+      const pct = totalInsightsFound > 0 ? Math.round((cnt / totalInsightsFound) * 100) : 0;
+      return {
+        id,
+        title: MODULE_LABELS[id],
+        count: cnt,
+        pct,
+        enabledUsers: moduleEnabledByUsers[id] || 0,
+      };
+    });
+
+    const topChannels = Array.from(channelStatsMap.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 8)
+      .map((c) => ({
+        ...c,
+        pct: totalInsightsFound > 0 ? Math.round((c.count / totalInsightsFound) * 100) : 0,
+      }));
+
+    const memMb = Math.round((process.memoryUsage().rss || 0) / (1024 * 1024));
+
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(
+      JSON.stringify({
+        ok: true,
+        adminId: ADMIN_TELEGRAM_ID,
+        generatedAt: now,
+        kpis: {
+          totalConnectedUsers: userRecords.length,
+          onlineSessionsCount: userClientsMap.size,
+          active24hUsers: Math.max(active24hUsers, userClientsMap.size),
+          botVisitorsCount: Math.max(botVisitorRecords.length, userRecords.length),
+          totalChannels,
+          totalMessagesScanned,
+          totalInsightsFound,
+          totalScansRun,
+          avgScanSpeedMs: scanSpeedCount > 0 ? Math.round(scanSpeedSum / scanSpeedCount) : 950,
+          serverUptimeSec: Math.round((now - SERVER_STARTED_AT) / 1000),
+          memoryMb: memMb,
+        },
+        moduleBreakdown,
+        dailySeries,
+        topChannels,
+        usersList,
+      })
+    );
+  }
+
+  // Explicit Log Out endpoint — FAQAT shu foydalanuvchining o'z hisobidan chiqadi!
   if (url.pathname === '/api/auth/logout' && req.method === 'POST') {
+    const body = await readJson();
+    const userKey = String(body?.userKey || headerUserKey || '').trim();
     try {
-      if (activeConnectedClient) {
+      const conn = userClientsMap.get(userKey);
+      if (conn && conn.client) {
         const g = await getGramJs();
         if (g && g.Api && g.Api.auth && g.Api.auth.LogOut) {
-          await activeConnectedClient.invoke(new g.Api.auth.LogOut()).catch(() => {});
+          await conn.client.invoke(new g.Api.auth.LogOut()).catch(() => {});
         }
-        await activeConnectedClient.disconnect().catch(() => {});
-        activeConnectedClient = null;
+        await conn.client.disconnect().catch(() => {});
       }
+      userClientsMap.delete(userKey);
     } catch {}
-    clearPersistentSession();
-    clearMemoryCaches();
-    clientMap.clear();
-    console.log('🔒 [Log Out] Foydalanuvchi o‘z xohishi bilan hisobdan chiqdi, sessiya tozalandi.');
+    clearUserSession(userKey);
+    clearUserMemoryCaches(userKey);
+    console.log(`🔒 [Log Out] Foydalanuvchi (${userKey}) o‘z xohishi bilan hisobdan chiqdi.`);
     res.writeHead(200, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({ ok: true, message: 'Hisobdan muvaffaqiyatli chiqildi.' }));
   }
 
-  // Papkalar + alohida kanallar ro'yxati (Profil va Asosiy ekran uchun)
+  // Papkalar + alohida kanallar ro'yxati (faqat shu foydalanuvchi uchun)
   if (url.pathname === '/api/folders' && req.method === 'GET') {
-    const client = await getOrRestoreAuthenticatedClient(headerToken);
-    const saved = loadSavedSession();
+    const client = await getOrRestoreAuthenticatedClient(headerUserKey, headerSecret, headerToken);
+    const saved = loadUserSession(headerUserKey, headerSecret, headerToken);
     if (!client) {
       if (saved && saved.folders) {
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -998,9 +1277,9 @@ async function handleRequest(req, res) {
     }
     try {
       const force = url.searchParams.get('refresh') === '1';
-      const fd = await fetchFolderData(client, force);
+      const fd = await fetchFolderData(client, force, headerUserKey);
       if (saved) {
-        savePersistentSession({ ...saved, folders: publicFolders(fd), chats: fd.chats });
+        saveUserSession(headerUserKey, { ...saved, folders: publicFolders(fd), chats: fd.chats });
       }
       res.writeHead(200, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ ok: true, folders: publicFolders(fd), chats: fd.chats }));
@@ -1010,7 +1289,7 @@ async function handleRequest(req, res) {
     }
   }
 
-  // JONLI SKAN (SSE) — 8X PARALLEL RAW MTPROTO TURBO SCANNER
+  // JONLI SKAN (SSE) — 8X PARALLEL RAW MTPROTO TURBO SCANNER (Isolated per userKey)
   if (url.pathname === '/api/insights/stream' && req.method === 'GET') {
     const selected = (url.searchParams.get('folders') || 'all').split(',').filter(Boolean);
     const forceFresh = url.searchParams.get('fresh') === '1';
@@ -1032,16 +1311,16 @@ async function handleRequest(req, res) {
     let aborted = false;
     req.on('close', () => (aborted = true));
 
-    const client = await getOrRestoreAuthenticatedClient(headerToken);
+    const client = await getOrRestoreAuthenticatedClient(headerUserKey, headerSecret, headerToken);
     if (!client) {
-      send('scan-error', { message: 'Server qayta ulanmoqda, 2 soniyadan so‘ng Skanerlashni bosing.' });
+      send('scan-error', { message: 'Hisobga qayta ulanmoqda, Yangilash tugmasini bosing.' });
       return res.end();
     }
 
     try {
       const t0 = Date.now();
       const g = await getGramJs();
-      const fd = await fetchFolderData(client, false);
+      const fd = await fetchFolderData(client, false, headerUserKey);
       send('folders', { folders: publicFolders(fd), chats: fd.chats });
 
       let targets = fd.dialogs;
@@ -1052,10 +1331,9 @@ async function handleRequest(req, res) {
         targets = fd.dialogs.filter((d) => allowed.has(String(d.id ?? '')));
       }
 
-      // Kanallarni (Broadcast) birinchi o'qish uchun oldinga qo'yamiz (e'lonlarning 95% kanallarda bo'ladi)
       targets = [...targets].sort((a, b) => Number(b.isChannel) - Number(a.isChannel));
 
-      console.log(`⚡ [Turbo Skan] ${targets.length} ta chat 8x parallel o'qilmoqda...`);
+      console.log(`⚡ [Turbo Skan | ${headerUserKey}] ${targets.length} ta chat 8x parallel o'qilmoqda...`);
       send('start', { total: targets.length });
 
       const all = [];
@@ -1064,11 +1342,11 @@ async function handleRequest(req, res) {
       let doneCount = 0;
       let cursor = 0;
       const CONCURRENCY = Math.min(8, Math.max(1, targets.length));
-      const cutoffSec = Date.now() / 1000 - 120 * 86400; // 120 kunlik chegara
+      const cutoffSec = Date.now() / 1000 - 120 * 86400;
 
       const fetchChatMessagesFast = async (dlg) => {
-        const cacheKey = String(dlg.id);
-        const cached = channelHistoryCache.get(cacheKey);
+        const cacheKey = `${headerUserKey}:${String(dlg.id)}`;
+        const cached = userChannelHistoryCache.get(cacheKey);
         if (!forceFresh && cached && Date.now() - cached.ts < 120000) {
           return cached.msgs;
         }
@@ -1087,11 +1365,11 @@ async function handleRequest(req, res) {
             })
           );
           const rawMsgs = hist?.messages || [];
-          channelHistoryCache.set(cacheKey, { ts: Date.now(), msgs: rawMsgs });
+          userChannelHistoryCache.set(cacheKey, { ts: Date.now(), msgs: rawMsgs });
           return rawMsgs;
         }
         const fallbackMsgs = await client.getMessages(dlg.entity, { limit: msgLimit });
-        channelHistoryCache.set(cacheKey, { ts: Date.now(), msgs: fallbackMsgs });
+        userChannelHistoryCache.set(cacheKey, { ts: Date.now(), msgs: fallbackMsgs });
         return fallbackMsgs;
       };
 
@@ -1136,19 +1414,21 @@ async function handleRequest(req, res) {
       await Promise.all(Array.from({ length: CONCURRENCY }, () => worker()));
 
       const elapsedMs = Date.now() - t0;
-      const saved = loadSavedSession();
+      recordScanTelemetry(headerUserKey, read, all.length, elapsedMs);
+      const saved = loadUserSession(headerUserKey, headerSecret, headerToken);
       if (saved) {
-        savePersistentSession({
+        saveUserSession(headerUserKey, {
           ...saved,
           folders: publicFolders(fd),
           chats: fd.chats,
           selectedFolderIds: selected,
           enabledModules: enabled,
           insights: all,
+          lastScanElapsedMs: elapsedMs,
           session: { ...saved.session, connectedChannelsCount: targets.length, scannedMessagesCount: read },
         });
       }
-      console.log(`✅ [Turbo Skan] ${targets.length} chat, ${read} xabar -> ${all.length} ta e'lon (${elapsedMs}ms)`);
+      console.log(`✅ [Turbo Skan | ${headerUserKey}] ${targets.length} chat, ${read} xabar -> ${all.length} ta e'lon (${elapsedMs}ms)`);
       send('done', { total: targets.length, read, found: all.length, elapsedMs });
     } catch (e) {
       send('scan-error', { message: e.message });
@@ -1156,69 +1436,12 @@ async function handleRequest(req, res) {
     return res.end();
   }
 
-  // Re-scan channels / specific Chat Folders
-  if (url.pathname === '/api/insights/sync' && req.method === 'POST') {
-    const { enabledModules, selectedFolderIds } = await readJson();
-    const client = await getOrRestoreAuthenticatedClient();
-    const saved = loadSavedSession();
-
-    if (!client) {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      return res.end(
-        JSON.stringify({
-          ok: false,
-          message: 'Faol Telegram sessiyasi topilmadi. Qaytadan hisobga kiring.',
-        })
-      );
-    }
-
-    try {
-      console.log(`🔄 [Chat Folders Scan] Tanlangan papkalar o'qilmoqda...`);
-      const scan = await fetchFoldersAndScanChannels(
-        client,
-        enabledModules || saved?.enabledModules,
-        selectedFolderIds || saved?.selectedFolderIds || ['all']
-      );
-
-      if (saved) {
-        savePersistentSession({
-          ...saved,
-          folders: scan.folders,
-          selectedFolderIds: selectedFolderIds || saved.selectedFolderIds || ['all'],
-          enabledModules: enabledModules || saved.enabledModules,
-          insights: scan.insights,
-          session: {
-            ...saved.session,
-            connectedChannelsCount: scan.channelsCount,
-            scannedMessagesCount: scan.messagesReadCount,
-          },
-        });
-      }
-
-      console.log(
-        `✅ [Chat Folders Scan] ${scan.channelsCount} ta chatdan ${scan.messagesReadCount} ta xabar o'qildi -> ${scan.insights.length} ta insight!`
-      );
-
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      return res.end(
-        JSON.stringify({
-          ok: true,
-          folders: scan.folders,
-          channelsCount: scan.channelsCount,
-          messagesReadCount: scan.messagesReadCount,
-          insights: scan.insights,
-        })
-      );
-    } catch (e) {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      return res.end(JSON.stringify({ ok: false, message: e.message }));
-    }
-  }
-
   if (url.pathname === '/api/auth/send-code' && req.method === 'POST') {
     const body = await readJson();
-    const { phoneNumber } = body;
+    const { phoneNumber, userKey: bodyUserKey } = body;
+    const userKey = String(bodyUserKey || headerUserKey || 'anon').trim();
     const cleanPhone = String(phoneNumber || '').replace(/[^\d+]/g, '');
+    const pendingKey = `${userKey}:${cleanPhone}`;
     const g = await getGramJs();
     if (!g) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -1226,18 +1449,18 @@ async function handleRequest(req, res) {
         JSON.stringify({
           ok: false,
           message:
-            'Lokal MTProto dvigateli hali yuklanmagan. PowerShell terminalda Ctrl+C bosib, .\\local.ps1 ni qaytadan ishga tushiring!',
+            'MTProto dvigateli hali yuklanmagan. Terminalda .\\local.ps1 ni qaytadan ishga tushiring!',
         })
       );
     }
 
     try {
-      console.log(`📲 [Local MTProto] ${cleanPhone} raqamiga haqiqiy Telegram kodi yuborilmoqda...`);
+      console.log(`📲 [MTProto | ${userKey}] ${cleanPhone} raqamiga Telegram kodi yuborilmoqda...`);
       const apiId = Number(process.env.TELEGRAM_API_ID || 2040);
       const apiHash = process.env.TELEGRAM_API_HASH || 'b18441a1ff607e10a989891a5462e627';
       const client = new g.TelegramClient(new g.StringSession(''), apiId, apiHash, {
         connectionRetries: 3,
-        deviceModel: 'acc.asis Desktop',
+        deviceModel: 'acc.asis Multi-User Agent',
         systemVersion: 'Windows 11',
         appVersion: '4.16.8 x64',
         langCode: 'en',
@@ -1245,8 +1468,8 @@ async function handleRequest(req, res) {
       });
       await client.connect();
       const result = await client.sendCode({ apiId, apiHash }, cleanPhone);
-      clientMap.set(cleanPhone, { client, phoneCodeHash: result.phoneCodeHash });
-      console.log(`✅ [Local MTProto] ${cleanPhone} ga haqiqiy kod yuborildi!`);
+      clientMap.set(pendingKey, { client, phoneCodeHash: result.phoneCodeHash });
+      console.log(`✅ [MTProto | ${userKey}] ${cleanPhone} ga kod yuborildi!`);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       return res.end(
         JSON.stringify({
@@ -1256,16 +1479,18 @@ async function handleRequest(req, res) {
         })
       );
     } catch (e) {
-      console.error(`❌ [Local MTProto Xato]:`, e.message);
+      console.error(`❌ [MTProto Xato]:`, e.message);
       res.writeHead(400, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ ok: false, message: `Telegram xatosi: ${e.message}` }));
     }
   }
 
   if (url.pathname === '/api/auth/verify-code' && req.method === 'POST') {
-    const { phoneNumber, code } = await readJson();
+    const { phoneNumber, code, userKey: bodyUserKey } = await readJson();
+    const userKey = String(bodyUserKey || headerUserKey || 'anon').trim();
     const cleanPhone = String(phoneNumber || '').replace(/[^\d+]/g, '');
-    const entry = clientMap.get(cleanPhone);
+    const pendingKey = `${userKey}:${cleanPhone}`;
+    const entry = clientMap.get(pendingKey) || clientMap.get(cleanPhone);
     const g = await getGramJs();
 
     if (!g || !entry) {
@@ -1315,9 +1540,11 @@ async function handleRequest(req, res) {
   }
 
   if (url.pathname === '/api/auth/verify-2fa' && req.method === 'POST') {
-    const { phoneNumber, password, enabledModules } = await readJson();
+    const { phoneNumber, password, enabledModules, userKey: bodyUserKey } = await readJson();
+    const userKey = String(bodyUserKey || headerUserKey || `user_${Date.now()}`).trim();
     const cleanPhone = String(phoneNumber || '').replace(/[^\d+]/g, '');
-    const entry = clientMap.get(cleanPhone);
+    const pendingKey = `${userKey}:${cleanPhone}`;
+    const entry = clientMap.get(pendingKey) || clientMap.get(cleanPhone);
     const g = await getGramJs();
 
     if (!g || !entry) {
@@ -1332,26 +1559,32 @@ async function handleRequest(req, res) {
       const srp = await g.computeCheck(pwdState, password);
       await entry.client.invoke(new g.Api.auth.CheckPassword({ password: srp }));
 
-      activeConnectedClient = entry.client;
       const sessionString = String(entry.client.session.save() || '');
+      const clientSecret = `sec_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
+      userClientsMap.set(userKey, { client: entry.client, sessionString });
+      clientMap.delete(pendingKey);
+
       const me = await entry.client.getMe().catch(() => ({}));
+      const tgId = String(me?.id || '').replace(/^-/, '').trim();
+      const isAdmin = tgId === ADMIN_TELEGRAM_ID || String(userKey).replace(/^tg_/, '') === ADMIN_TELEGRAM_ID;
       const fullName =
         [me?.firstName, me?.lastName].filter(Boolean).join(' ') || cleanPhone;
 
-      // Darhol papkalar va kanallar ro'yxatini olamiz (<1s)
       let foldersList = [];
       let chatsList = [];
       try {
-        const fd = await fetchFolderData(entry.client);
+        const fd = await fetchFolderData(entry.client, true, userKey);
         foldersList = publicFolders(fd);
         chatsList = fd.chats;
       } catch (e) {
         console.log('Login folders fetch note:', e.message);
       }
 
-      console.log(`✅ [MTProto] ${cleanPhone} (${fullName}) ulandi. ${chatsList.length} ta chat va ${foldersList.length} ta papka topildi.`);
+      console.log(`✅ [MTProto | ${userKey}] ${cleanPhone} (${fullName}, ID:${tgId}) ulandi. ${chatsList.length} ta chat va ${foldersList.length} ta papka topildi.`);
 
       const sessionObj = {
+        telegramId: tgId,
+        isAdmin,
         phoneNumber: cleanPhone,
         firstName: fullName,
         username: me?.username || '',
@@ -1360,9 +1593,11 @@ async function handleRequest(req, res) {
         scannedMessagesCount: 0,
       };
 
-      // Persist session on disk so user stays logged in until explicit Log Out!
-      savePersistentSession({
+      // Save strictly under THIS user's userKey!
+      saveUserSession(userKey, {
         authenticated: true,
+        userKey,
+        clientSecret,
         sessionString,
         session: sessionObj,
         folders: foldersList,
@@ -1376,6 +1611,9 @@ async function handleRequest(req, res) {
       return res.end(
         JSON.stringify({
           ok: true,
+          isAdmin,
+          userKey,
+          clientSecret,
           sessionString,
           session: sessionObj,
           folders: foldersList,
@@ -1587,9 +1825,10 @@ function extractInsights(text, handle, channelTitle, messageId, enabled, postedA
 // ============================================================================
 // PAPKALAR: Parallel MTProto GetDialogs (folder=0, folder=1) + GetDialogFilters + Memory Cache
 // ============================================================================
-async function fetchFolderData(client, forceRefresh = false) {
-  if (!forceRefresh && folderDataCache.data && Date.now() - folderDataCache.ts < 180000) {
-    return folderDataCache.data;
+async function fetchFolderData(client, forceRefresh = false, userKey = 'default') {
+  const cached = userFolderCacheMap.get(userKey);
+  if (!forceRefresh && cached?.data && Date.now() - cached.ts < 180000) {
+    return cached.data;
   }
 
   const g = await getGramJs();
@@ -1786,7 +2025,7 @@ async function fetchFolderData(client, forceRefresh = false) {
       chatsCount: 1,
     })),
   };
-  folderDataCache = { ts: Date.now(), data: result };
+  userFolderCacheMap.set(userKey, { ts: Date.now(), data: result });
   return result;
 }
 
