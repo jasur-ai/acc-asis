@@ -86,19 +86,25 @@ function todayKey() {
 }
 
 function recordBotVisitor(fromUser) {
-  if (!fromUser || !fromUser.id) return;
+  if (!fromUser || !fromUser.id) return { startsCount: 1, isFirstStart: true };
   const db = loadAllUsersDb();
   const id = String(fromUser.id);
   const prev = db.botVisitors[id] || {};
+  const prevCount = Number(prev.startsCount || 0);
+  const nextCount = prevCount + 1;
   db.botVisitors[id] = {
     telegramId: id,
     firstName: [fromUser.first_name, fromUser.last_name].filter(Boolean).join(' ') || 'Foydalanuvchi',
     username: fromUser.username || prev.username || '',
     firstSeenAt: prev.firstSeenAt || Date.now(),
     lastSeenAt: Date.now(),
-    startsCount: (prev.startsCount || 0) + 1,
+    startsCount: nextCount,
   };
   saveAllUsersDb(db);
+  return {
+    ...db.botVisitors[id],
+    isFirstStart: prevCount === 0,
+  };
 }
 
 function recordScanTelemetry(userKey, messagesRead, insightsFound, elapsedMs) {
@@ -219,15 +225,322 @@ if (fs.existsSync(publicDir)) {
   });
 }
 
-// 3. Telegram Agent Polling (@accass_agent)
+// 3. Telegram Agent Polling (@accass_agent) — Non-blocking, Timeout-Safe & Smart Short /start
 let lastUpdateId = 0;
+let lastBotPollAt = 0;
+let cachedBannerFileId = '';
+
+async function tgApiCall(tgBase, method, payload = null, timeoutMs = 10000) {
+  try {
+    const opts = {
+      method: payload ? 'POST' : 'GET',
+      signal: AbortSignal.timeout(timeoutMs),
+    };
+    if (payload) {
+      opts.headers = { 'Content-Type': 'application/json' };
+      opts.body = JSON.stringify(payload);
+    }
+    const res = await fetch(`${tgBase}/${method}`, opts);
+    return await res.json();
+  } catch (e) {
+    return { ok: false, description: e.message };
+  }
+}
+
+async function sendFullWelcomeWithPhoto(tgBase, chatId, safeName, replyMarkup) {
+  const fullWelcomeHtml = [
+    `<b>acc.asis — Telegram Insight Agent</b>`,
+    ``,
+    `Salom, <b>${safeName}</b>. Agent hisobingizdagi kanallarni tahlil qilib, 5 ta yo‘nalishda faqat <b>londa insightlarni</b> ajratib beradi:`,
+    `• <b>Tadbirlar va Musobaqalar</b> (Zakovat, Debate, Forum)`,
+    `• <b>Ilmiy Anjuman va Maqolalar</b> (Jurnal, Tezis, Oylik ro‘yxat)`,
+    `• <b>Volontyorlik, Stipendiyalar va Tanlovlar</b>`,
+    ``,
+    `Hisobni ulash uchun Telegramingizda <b>2FA parol</b> yoqilgan bo‘lishi shart.`,
+  ].join('\n');
+
+  let sentPhotoOk = false;
+
+  // 1. Eng tez usul: keshdagi Telegram file_id yoki Vercel CDN URL orqali yuborish (<80ms)
+  const fastPhotoRef = cachedBannerFileId || `${PUBLIC_MINI_APP_URL}/bot-banner.jpg`;
+  const fastRes = await tgApiCall(
+    tgBase,
+    'sendPhoto',
+    {
+      chat_id: chatId,
+      photo: fastPhotoRef,
+      caption: fullWelcomeHtml,
+      parse_mode: 'HTML',
+      reply_markup: replyMarkup,
+    },
+    8000
+  );
+  if (fastRes?.ok) {
+    sentPhotoOk = true;
+    const photos = fastRes.result?.photo;
+    if (Array.isArray(photos) && photos.length > 0) {
+      cachedBannerFileId = photos[photos.length - 1].file_id || cachedBannerFileId;
+    }
+  }
+
+  // 2. Agar CDN rasm hali keshda bo'lmasa, lokal diskdan yuboramiz (8s timeout bilan)
+  if (!sentPhotoOk && fs.existsSync(bannerDest)) {
+    try {
+      const form = new FormData();
+      form.append('chat_id', String(chatId));
+      form.append('caption', fullWelcomeHtml);
+      form.append('parse_mode', 'HTML');
+      form.append('reply_markup', JSON.stringify(replyMarkup));
+      const imgBuffer = fs.readFileSync(bannerDest);
+      form.append(
+        'photo',
+        new Blob([imgBuffer], { type: 'image/jpeg' }),
+        'acc-asis-welcome.jpg'
+      );
+      const photoRes = await fetch(`${tgBase}/sendPhoto`, {
+        method: 'POST',
+        body: form,
+        signal: AbortSignal.timeout(8000),
+      });
+      const photoJson = await photoRes.json();
+      if (photoJson?.ok) {
+        sentPhotoOk = true;
+        const photos = photoJson.result?.photo;
+        if (Array.isArray(photos) && photos.length > 0) {
+          cachedBannerFileId = photos[photos.length - 1].file_id || cachedBannerFileId;
+        }
+      }
+    } catch {}
+  }
+
+  if (!sentPhotoOk) {
+    await tgApiCall(tgBase, 'sendMessage', {
+      chat_id: chatId,
+      text: fullWelcomeHtml,
+      parse_mode: 'HTML',
+      reply_markup: replyMarkup,
+    });
+  }
+}
+
+async function handleBotUpdate(tgBase, upd) {
+  const fullReplyMarkup = {
+    inline_keyboard: [
+      [
+        {
+          text: 'acc.asis Mini Appni Ochish',
+          web_app: { url: PUBLIC_MINI_APP_URL },
+        },
+      ],
+      [
+        { text: '5 ta Yo‘nalish', callback_data: 'show_modules' },
+        { text: '2FA Qoidasi', callback_data: 'show_security' },
+      ],
+    ],
+  };
+
+  const shortReplyMarkup = {
+    inline_keyboard: [
+      [
+        {
+          text: 'acc.asis Mini Appni Ochish',
+          web_app: { url: PUBLIC_MINI_APP_URL },
+        },
+      ],
+      [
+        { text: '5 ta Yo‘nalish', callback_data: 'show_modules' },
+        { text: 'Batafsil Tanishtiruv', callback_data: 'show_full_intro' },
+      ],
+    ],
+  };
+
+  const msg = upd.message;
+  if (msg && typeof msg.text === 'string') {
+    const text = msg.text.trim();
+    const cmd = text.split(/\s+/)[0].split('@')[0].toLowerCase();
+    const arg = (text.split(/\s+/)[1] || '').toLowerCase();
+    const chatId = msg.chat.id;
+    const rawName = msg.from?.first_name || 'Foydalanuvchi';
+    const safeName = String(rawName).replace(/[<>&]/g, '');
+
+    if (cmd === '/start') {
+      const visitor = recordBotVisitor(msg.from);
+      const forceFirst = arg === 'first' || arg === 'full' || arg === 'intro';
+
+      if (visitor.isFirstStart || forceFirst) {
+        // 1-marta /start bosilganda: Rasm bilan to'liq tanishtiruv
+        await sendFullWelcomeWithPhoto(tgBase, chatId, safeName, fullReplyMarkup);
+      } else {
+        // Keyingi /start larda: Rasmsiz, londa va qisqa xabar!
+        const shortWelcomeHtml = [
+          `<b>acc.asis — Insight Agent tayyor, ${safeName}.</b>`,
+          `Kanallaringizdagi saralangan e’lonlarni ko‘rish va boshqarish uchun Mini Appni oching:`,
+        ].join('\n');
+
+        await tgApiCall(tgBase, 'sendMessage', {
+          chat_id: chatId,
+          text: shortWelcomeHtml,
+          parse_mode: 'HTML',
+          reply_markup: shortReplyMarkup,
+        });
+      }
+      return;
+    }
+
+    if (cmd === '/app' || cmd === '/panel' || cmd === '/open') {
+      await tgApiCall(tgBase, 'sendMessage', {
+        chat_id: chatId,
+        text: `<b>acc.asis Mini App</b> — Barcha saralangan e’lonlar va papka sozlamalari:`,
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: 'acc.asis Mini Appni Ochish', web_app: { url: PUBLIC_MINI_APP_URL } }],
+          ],
+        },
+      });
+      return;
+    }
+
+    if (cmd === '/modules') {
+      await tgApiCall(tgBase, 'sendMessage', {
+        chat_id: chatId,
+        text: [
+          `<b>acc.asis — 5 ta Yo‘nalish</b>`,
+          `1. Tadbirlar va Musobaqalar (Zakovat, Debate, Forum)`,
+          `2. Ilmiy Anjuman va Maqolalar (Jurnal, Tezis, Oylik ro‘yxat)`,
+          `3. Volontyorlik`,
+          `4. Stipendiya va Exchange grantlar`,
+          `5. Tanlovlar`,
+          ``,
+          `Profil bo‘limida keraksiz yo‘nalishni OFF qilib qo‘yishingiz mumkin.`,
+        ].join('\n'),
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: 'Bo‘limlarni Sozlash (Mini App)', web_app: { url: PUBLIC_MINI_APP_URL } }],
+          ],
+        },
+      });
+      return;
+    }
+
+    if (cmd === '/security' || cmd === '/2fa') {
+      await tgApiCall(tgBase, 'sendMessage', {
+        chat_id: chatId,
+        text: `<b>Majburiy 2FA Xavfsizlik Standarti</b>\n\n• <b>acc.asis</b> rasmiy Telegram MTProto orqali ishlaydi.\n• Hisobingizda <b>2-bosqichli tekshiruv (2FA Cloud Password)</b> yoqilgan bo‘lishi shart.`,
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '2FA Bilan Hisobni Ulash', web_app: { url: PUBLIC_MINI_APP_URL } }],
+          ],
+        },
+      });
+      return;
+    }
+
+    if (cmd === '/stats' || cmd === '/admin') {
+      const senderId = String(msg.from?.id || '');
+      if (senderId !== ADMIN_TELEGRAM_ID) {
+        await tgApiCall(tgBase, 'sendMessage', {
+          chat_id: chatId,
+          text: `Ushbu buyruq faqat Admin (ID: 8004724563) uchun.`,
+          parse_mode: 'HTML',
+        });
+        return;
+      }
+      const db = loadAllUsersDb();
+      const usersCount = Object.values(db.users || {}).filter((u) => u && u.session).length;
+      const visitorsCount = Object.keys(db.botVisitors || {}).length;
+      await tgApiCall(tgBase, 'sendMessage', {
+        chat_id: chatId,
+        text: [
+          `<b>acc.asis — Admin Tezkor Statistika</b>`,
+          `• Ulangan hisoblar: <b>${usersCount} ta</b>`,
+          `• Agent foydalanuvchilari: <b>${ Math.max(visitorsCount, usersCount) } kishi</b>`,
+          `• Online MTProto sessiyalar: <b>${userClientsMap.size} ta</b>`,
+          ``,
+          `To‘liq grafik va jadvallarni Mini App ichidagi <b>Statistika</b> tugmasi orqali ko‘ring:`,
+        ].join('\n'),
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: 'Admin Statistikani Ochish', web_app: { url: PUBLIC_MINI_APP_URL } }],
+          ],
+        },
+      });
+      return;
+    }
+
+    if (cmd === '/help') {
+      await tgApiCall(tgBase, 'sendMessage', {
+        chat_id: chatId,
+        text: [
+          `<b>acc.asis — Agent Buyruqlari</b>`,
+          `• /start — Agentni ishga tushirish`,
+          `• /app — Mini Appni darhol ochish`,
+          `• /modules — 5 ta yo‘nalish haqida`,
+          `• /security — 2FA xavfsizlik qoidasi`,
+          `• /help — Yordam oynasi`,
+        ].join('\n'),
+        parse_mode: 'HTML',
+        reply_markup: shortReplyMarkup,
+      });
+      return;
+    }
+  }
+
+  if (upd.callback_query) {
+    const cq = upd.callback_query;
+    const chatId = cq.message?.chat?.id;
+    const rawName = cq.from?.first_name || 'Foydalanuvchi';
+    const safeName = String(rawName).replace(/[<>&]/g, '');
+
+    await tgApiCall(tgBase, 'answerCallbackQuery', { callback_query_id: cq.id }, 5000);
+
+    if (chatId && cq.data === 'show_full_intro') {
+      await sendFullWelcomeWithPhoto(tgBase, chatId, safeName, fullReplyMarkup);
+    } else if (chatId && cq.data === 'show_modules') {
+      await tgApiCall(tgBase, 'sendMessage', {
+        chat_id: chatId,
+        text: `<b>Modulli Arxitektura (Tezlik va Qulaylik)</b>\n\nProfil bo‘limida o‘zingizga kerak bo‘lmagan yo‘nalishlarni o‘chirib qo‘yishingiz yoki faqat kerakli Chat Folder (papka)larni tanlashingiz mumkin.`,
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text: 'Bo‘limlarni Sozlash (Mini App)',
+                web_app: { url: PUBLIC_MINI_APP_URL },
+              },
+            ],
+          ],
+        },
+      });
+    } else if (chatId && cq.data === 'show_security') {
+      await tgApiCall(tgBase, 'sendMessage', {
+        chat_id: chatId,
+        text: `<b>Majburiy 2FA Xavfsizlik Standarti</b>\n\n• <b>acc.asis</b> rasmiy Telegram MTProto orqali ishlaydi.\n• Hisobingizda <b>2-bosqichli tekshiruv (2FA Cloud Password)</b> yoqilgan bo‘lishi shart.`,
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text: '2FA Bilan Hisobni Ulash',
+                web_app: { url: PUBLIC_MINI_APP_URL },
+              },
+            ],
+          ],
+        },
+      });
+    }
+  }
+}
+
 async function pollTelegramBot() {
   const tgBase = `https://api.telegram.org/bot${BOT_TOKEN}`;
   try {
-    await fetch(`${tgBase}/deleteWebhook`);
+    await tgApiCall(tgBase, 'deleteWebhook', { drop_pending_updates: false }, 6000);
 
-    const meRes = await fetch(`${tgBase}/getMe`);
-    const meData = await meRes.json();
+    const meData = await tgApiCall(tgBase, 'getMe', null, 6000);
     if (meData.ok) {
       console.log(`✅ [@${meData.result.username}] Telegram Agent jonli ulandi!`);
     }
@@ -243,169 +556,55 @@ async function pollTelegramBot() {
       'Xavfsizlik uchun 2FA yoqilgan bo‘lishi shart. Boshlash uchun START bosing.',
     ].join('\n');
 
-    await fetch(`${tgBase}/setMyDescription`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ description: preStartDescription }),
-    });
-
-    await fetch(`${tgBase}/setMyShortDescription`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    await Promise.allSettled([
+      tgApiCall(tgBase, 'setMyDescription', { description: preStartDescription }),
+      tgApiCall(tgBase, 'setMyShortDescription', {
         short_description:
           'acc.asis — Tadbirlar, ilmiy maqolalar, volontyorlik, stipendiya va tanlovlarni kanallaringizdan londa ajratuvchi AI Agent.',
       }),
-    });
+      tgApiCall(tgBase, 'setMyCommands', {
+        commands: [
+          { command: 'start', description: 'Agentni ishga tushirish' },
+          { command: 'app', description: 'acc.asis Mini Appni ochish' },
+          { command: 'modules', description: '5 ta yo‘nalish haqida' },
+          { command: 'security', description: '2FA xavfsizlik qoidasi' },
+          { command: 'help', description: 'Yordam va barcha buyruqlar' },
+        ],
+      }),
+    ]);
   } catch (e) {
     console.error('Agent init xatosi:', e.message);
   }
 
   while (true) {
     try {
+      lastBotPollAt = Date.now();
       const res = await fetch(
-        `${tgBase}/getUpdates?offset=${lastUpdateId + 1}&timeout=20`,
-        { signal: AbortSignal.timeout(25000) }
+        `${tgBase}/getUpdates?offset=${lastUpdateId + 1}&timeout=15`,
+        { signal: AbortSignal.timeout(20000) }
       );
       const data = await res.json();
+      lastBotPollAt = Date.now();
 
       if (!data.ok) {
         if (data.error_code === 409) {
-          await fetch(`${tgBase}/deleteWebhook`);
+          await tgApiCall(tgBase, 'deleteWebhook', { drop_pending_updates: false }, 5000);
         }
-        await new Promise((r) => setTimeout(r, 1500));
+        await new Promise((r) => setTimeout(r, 1200));
         continue;
       }
 
       if (Array.isArray(data.result)) {
         for (const upd of data.result) {
           lastUpdateId = upd.update_id;
-
-          const msg = upd.message;
-          if (msg && msg.text && msg.text.startsWith('/start')) {
-            recordBotVisitor(msg.from);
-            const chatId = msg.chat.id;
-            const rawName = msg.from?.first_name || 'Foydalanuvchi';
-            const safeName = String(rawName).replace(/[<>&]/g, '');
-
-            const welcomeHtml = [
-              `<b>acc.asis — Telegram Insight Agent</b>`,
-              ``,
-              `Salom, <b>${safeName}</b>. Agent hisobingizdagi kanallarni tahlil qilib, 5 ta yo‘nalishda faqat <b>londa insightlarni</b> ajratib beradi:`,
-              `• <b>Tadbirlar va Musobaqalar</b> (Zakovat, Debate, Forum)`,
-              `• <b>Ilmiy Anjuman va Maqolalar</b> (Jurnal, Tezis, Oylik ro‘yxat)`,
-              `• <b>Volontyorlik, Stipendiyalar va Tanlovlar</b>`,
-              ``,
-              `Hisobni ulash uchun Telegramingizda <b>2FA parol</b> yoqilgan bo‘lishi shart.`,
-            ].join('\n');
-
-            const replyMarkup = {
-              inline_keyboard: [
-                [
-                  {
-                    text: 'acc.asis Mini Appni Ochish',
-                    web_app: { url: PUBLIC_MINI_APP_URL },
-                  },
-                ],
-                [
-                  { text: '5 ta Yo‘nalish', callback_data: 'show_modules' },
-                  { text: '2FA Qoidasi', callback_data: 'show_security' },
-                ],
-              ],
-            };
-
-            let sentPhotoOk = false;
-            if (fs.existsSync(bannerDest)) {
-              try {
-                const form = new FormData();
-                form.append('chat_id', String(chatId));
-                form.append('caption', welcomeHtml);
-                form.append('parse_mode', 'HTML');
-                form.append('reply_markup', JSON.stringify(replyMarkup));
-                const imgBuffer = fs.readFileSync(bannerDest);
-                form.append(
-                  'photo',
-                  new Blob([imgBuffer], { type: 'image/jpeg' }),
-                  'acc-asis-welcome.jpg'
-                );
-                const photoRes = await fetch(`${tgBase}/sendPhoto`, {
-                  method: 'POST',
-                  body: form,
-                });
-                const photoJson = await photoRes.json();
-                sentPhotoOk = Boolean(photoJson.ok);
-              } catch {}
-            }
-
-            if (!sentPhotoOk) {
-              await fetch(`${tgBase}/sendMessage`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  chat_id: chatId,
-                  text: welcomeHtml,
-                  parse_mode: 'HTML',
-                  reply_markup: replyMarkup,
-                }),
-              });
-            }
-          }
-
-          if (upd.callback_query) {
-            const cq = upd.callback_query;
-            const chatId = cq.message?.chat?.id;
-            await fetch(`${tgBase}/answerCallbackQuery`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ callback_query_id: cq.id }),
-            });
-
-            if (chatId && cq.data === 'show_modules') {
-              await fetch(`${tgBase}/sendMessage`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  chat_id: chatId,
-                  text: `<b>Modulli Arxitektura (Tezlik va Qulaylik)</b>\n\nProfil bo‘limida o‘zingizga kerak bo‘lmagan yo‘nalishlarni o‘chirib qo‘yishingiz yoki faqat kerakli Chat Folder (papka)larni tanlashingiz mumkin.`,
-                  parse_mode: 'HTML',
-                  reply_markup: {
-                    inline_keyboard: [
-                      [
-                        {
-                          text: 'Bo‘limlarni Sozlash (Mini App)',
-                          web_app: { url: PUBLIC_MINI_APP_URL },
-                        },
-                      ],
-                    ],
-                  },
-                }),
-              });
-            } else if (chatId && cq.data === 'show_security') {
-              await fetch(`${tgBase}/sendMessage`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  chat_id: chatId,
-                  text: `<b>Majburiy 2FA Xavfsizlik Standarti</b>\n\n• <b>acc.asis</b> rasmiy Telegram MTProto orqali ishlaydi.\n• Hisobingizda <b>2-bosqichli tekshiruv (2FA Cloud Password)</b> yoqilgan bo‘lishi shart.`,
-                  parse_mode: 'HTML',
-                  reply_markup: {
-                    inline_keyboard: [
-                      [
-                        {
-                          text: '2FA Bilan Hisobni Ulash',
-                          web_app: { url: PUBLIC_MINI_APP_URL },
-                        },
-                      ],
-                    ],
-                  },
-                }),
-              });
-            }
-          }
+          // Har bir xabarni bloklamasdan (async) qayta ishlaymiz — polling sikli HECH QACHON qotib qolmaydi!
+          handleBotUpdate(tgBase, upd).catch((err) =>
+            console.error('Bot update handler note:', err?.message || err)
+          );
         }
       }
     } catch {
-      await new Promise((r) => setTimeout(r, 1500));
+      await new Promise((r) => setTimeout(r, 1200));
     }
   }
 }
@@ -475,6 +674,17 @@ async function getOrRestoreAuthenticatedClient(userKey, clientSecret = '', incom
       return existingConn.client;
     } catch {}
     userClientsMap.delete(userKey);
+  }
+
+  // Agar ayni shu sessionString boshqa userKey ostida allaqachon ulangan bo'lsa, ikkinchi TelegramClient yaratmaymiz (MTProto to'qnashmasligi uchun)!
+  for (const [, conn] of userClientsMap.entries()) {
+    if (conn && conn.client && conn.sessionString === candidateToken) {
+      try {
+        if (!conn.client.connected) await conn.client.connect();
+        userClientsMap.set(userKey, conn);
+        return conn.client;
+      } catch {}
+    }
   }
 
   // If server restarted or updated and this user sent their own valid sessionString, restore their record!
@@ -951,6 +1161,12 @@ async function handleRequest(req, res) {
     return res.end(JSON.stringify({ ok: true, mode: process.env.RENDER ? 'render-cloud' : 'local-pc', multiUser: true }));
   }
 
+  if (url.pathname === '/api/bot/heartbeat') {
+    const alive = Date.now() - lastBotPollAt < 35000;
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ ok: true, botPollingAlive: alive, lastBotPollAt }));
+  }
+
   if (url.pathname === '/api/live-reload') {
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
@@ -1043,13 +1259,15 @@ async function handleRequest(req, res) {
     if (client) {
       try {
         const fd = await fetchFolderData(client, false, userKey);
-        folders = publicFolders(fd);
-        chats = fd.chats;
-        saveUserSession(userKey, {
-          ...saved,
-          folders,
-          chats,
-        });
+        if (fd && fd.dialogs && fd.dialogs.length > 0) {
+          folders = publicFolders(fd);
+          chats = fd.chats;
+          saveUserSession(userKey, {
+            ...saved,
+            folders,
+            chats,
+          });
+        }
       } catch {}
     }
 
@@ -1407,11 +1625,20 @@ async function handleRequest(req, res) {
 
           try {
             const msgs = await fetchChatMessagesFast(dlg);
+            // Kompyuter soati (Date.now()) oldinga surilgan bo'lsa ham xabarlarni o'tkazib yubormaslik uchun
+            // eng oxirgi xabar vaqtini (maxMsgDate) tayanch vaqt sifatida olamiz!
+            let latestMsgSec = 0;
+            for (const m of msgs) {
+              if (m?.date && m.date > latestMsgSec) latestMsgSec = m.date;
+            }
+            const effectiveCutoffSec =
+              latestMsgSec > 0 ? latestMsgSec - 150 * 86400 : cutoffSec;
+
             for (const m of msgs) {
               if (aborted) break;
               const txt = m?.message;
               if (!txt || txt.length < 30) continue;
-              if (m.date && m.date < cutoffSec) break;
+              if (m.date && m.date < effectiveCutoffSec) break;
               read++;
               const items = extractInsights(txt, handle, title, m.id, enabled, m.date || 0);
               for (const it of items) {
@@ -1442,13 +1669,17 @@ async function handleRequest(req, res) {
       if (saved) {
         saveUserSession(headerUserKey, {
           ...saved,
-          folders: publicFolders(fd),
-          chats: fd.chats,
+          folders: fd.dialogs.length > 0 ? publicFolders(fd) : (saved.folders || publicFolders(fd)),
+          chats: fd.chats.length > 0 ? fd.chats : (saved.chats || []),
           selectedFolderIds: selected,
           enabledModules: enabled,
-          insights: all,
+          insights: all.length > 0 ? all : (saved.insights || []),
           lastScanElapsedMs: elapsedMs,
-          session: { ...saved.session, connectedChannelsCount: targets.length, scannedMessagesCount: read },
+          session: {
+            ...saved.session,
+            connectedChannelsCount: targets.length || saved.session?.connectedChannelsCount || 0,
+            scannedMessagesCount: read || saved.session?.scannedMessagesCount || 0,
+          },
         });
       }
       console.log(`✅ [Turbo Skan | ${headerUserKey}] ${targets.length} chat, ${read} xabar -> ${all.length} ta e'lon (${elapsedMs}ms)`);
@@ -1753,10 +1984,8 @@ function classifyPost(text, handle, channelTitle, messageId, enabled, forcedModu
   if (CLOSED.some((c) => c.test(lower))) return null; // yopilgan / o'tib ketgan
   if (d.expired) return null; // postdagi barcha sanalar o'tib ketgan
   if (!d.found) {
-    // Sana yo'q: faqat yangi (30 kun ichida) va harakatga chaqiruvi bor postlar
-    const ageDays = postedAt ? (Date.now() / 1000 - postedAt) / 86400 : 0;
-    if (ageDays > 30) return null;
-    if (!forcedModule && !ACTION.test(lower)) return null;
+    // Sana yo'q bo'lsa ham, harakatga chaqiruvi (link, ro'yxatdan o'tish, qabul) yoki kuchli signali (bestScore >= 4) bor postlarni o'tkazib yubormaymiz
+    if (!forcedModule && bestScore < 4 && !ACTION.test(lower)) return null;
   }
 
   const lines = clean.split('\n').map((l) => l.trim()).filter(Boolean);
@@ -2048,7 +2277,9 @@ async function fetchFolderData(client, forceRefresh = false, userKey = 'default'
       chatsCount: 1,
     })),
   };
-  userFolderCacheMap.set(userKey, { ts: Date.now(), data: result });
+  if (allDialogs.length > 0) {
+    userFolderCacheMap.set(userKey, { ts: Date.now(), data: result });
+  }
   return result;
 }
 
