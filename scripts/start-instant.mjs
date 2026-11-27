@@ -262,16 +262,51 @@ async function purgeDeadSessionToken(deadToken) {
   }
 }
 
-function clearUserSession(userKey) {
-  if (!userKey) return;
+function clearUserSession(userKey, extra = {}) {
+  const { sessionString = '', telegramId = '' } = extra;
   const db = loadAllUsersDb();
-  const deadToken = db.users[userKey]?.sessionString;
-  if (db.users[userKey]) {
-    delete db.users[userKey];
-    saveAllUsersDb(db);
+  const deadTokens = new Set();
+  const keysToDelete = new Set();
+
+  if (userKey) keysToDelete.add(userKey);
+  if (telegramId) keysToDelete.add(`tg_${telegramId}`);
+  if (sessionString) deadTokens.add(sessionString);
+
+  for (const [uk, rec] of Object.entries(db.users || {})) {
+    if (!rec) continue;
+    const recTgId = String(rec.session?.telegramId || '');
+    const isMatch =
+      keysToDelete.has(uk) ||
+      (telegramId && recTgId === String(telegramId)) ||
+      (sessionString && rec.sessionString === sessionString) ||
+      !process.env.RENDER;
+    if (isMatch) {
+      if (rec.sessionString) deadTokens.add(rec.sessionString);
+      keysToDelete.add(uk);
+    }
   }
-  if (deadToken) {
-    purgeDeadSessionToken(deadToken);
+
+  let changed = false;
+  for (const uk of keysToDelete) {
+    if (db.users[uk]) {
+      delete db.users[uk];
+      changed = true;
+    }
+  }
+  if (changed) saveAllUsersDb(db);
+
+  for (const dt of deadTokens) {
+    if (dt) purgeDeadSessionToken(dt);
+  }
+
+  if (!process.env.RENDER) {
+    for (const legacyFile of [LEGACY_SESSION_FILE, LEGACY_BACKUP_FILE]) {
+      if (fs.existsSync(legacyFile)) {
+        try {
+          fs.writeFileSync(legacyFile, '{}', 'utf8');
+        } catch {}
+      }
+    }
   }
 }
 
@@ -1578,20 +1613,46 @@ async function handleRequest(req, res) {
   if (url.pathname === '/api/auth/logout' && req.method === 'POST') {
     const body = await readJson();
     const userKey = String(body?.userKey || headerUserKey || '').trim();
-    try {
-      const conn = userClientsMap.get(userKey);
-      if (conn && conn.client) {
-        const g = await getGramJs();
-        if (g && g.Api && g.Api.auth && g.Api.auth.LogOut) {
-          await conn.client.invoke(new g.Api.auth.LogOut()).catch(() => {});
-        }
-        await conn.client.disconnect().catch(() => {});
+    const sessionString = String(body?.sessionString || headerToken || '').trim();
+    const telegramId = String(body?.telegramId || '').replace(/^tg_/, '').trim();
+    const g = await getGramJs();
+
+    const db = loadAllUsersDb();
+    const matchedKeys = new Set();
+    if (userKey) matchedKeys.add(userKey);
+    if (telegramId) matchedKeys.add(`tg_${telegramId}`);
+
+    for (const [uk, rec] of Object.entries(db.users || {})) {
+      if (!rec) continue;
+      const recTgId = String(rec.session?.telegramId || '');
+      if (
+        matchedKeys.has(uk) ||
+        (telegramId && recTgId === telegramId) ||
+        (sessionString && rec.sessionString === sessionString) ||
+        !process.env.RENDER
+      ) {
+        matchedKeys.add(uk);
       }
-      userClientsMap.delete(userKey);
-    } catch {}
-    clearUserSession(userKey);
-    clearUserMemoryCaches(userKey);
-    console.log(`🔒 [Log Out] Foydalanuvchi (${userKey}) o‘z xohishi bilan hisobdan chiqdi.`);
+    }
+
+    for (const uk of matchedKeys) {
+      try {
+        const conn = userClientsMap.get(uk);
+        if (conn && conn.client) {
+          if (conn.sessionString) revokedTokensSet.add(conn.sessionString);
+          if (g && g.Api && g.Api.auth && g.Api.auth.LogOut) {
+            await conn.client.invoke(new g.Api.auth.LogOut()).catch(() => {});
+          }
+          await conn.client.disconnect().catch(() => {});
+        }
+        userClientsMap.delete(uk);
+      } catch {}
+      clearUserMemoryCaches(uk);
+    }
+
+    if (sessionString) revokedTokensSet.add(sessionString);
+    clearUserSession(userKey, { sessionString, telegramId });
+    console.log(`🔒 [Log Out] Foydalanuvchi (${userKey}${telegramId ? `, tg_${telegramId}` : ''}) o‘z xohishi bilan hisobdan chiqdi.`);
     res.writeHead(200, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({ ok: true, message: 'Hisobdan muvaffaqiyatli chiqildi.' }));
   }
