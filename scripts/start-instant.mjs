@@ -141,10 +141,28 @@ function checkIsAdminRecord(userKey, record) {
 function loadUserSession(userKey, _clientSecret = '', incomingSessionString = '') {
   const db = loadAllUsersDb();
   if (userKey && db.users[userKey] && db.users[userKey].sessionString) {
-    return db.users[userKey];
+    if (!revokedTokensSet.has(db.users[userKey].sessionString)) {
+      return db.users[userKey];
+    }
+  }
+  // Agar foydalanuvchi Telegram Mini App ichidan (tg_<id>) kirgan bo'lsa, telegramId bo'yicha ham qidiramiz
+  if (userKey && userKey.startsWith('tg_')) {
+    const rawTgId = userKey.replace(/^tg_/, '').trim();
+    const byTgId = Object.values(db.users).find(
+      (u) =>
+        u &&
+        u.sessionString &&
+        !revokedTokensSet.has(u.sessionString) &&
+        String(u.session?.telegramId || '') === rawTgId
+    );
+    if (byTgId) {
+      db.users[userKey] = { ...byTgId, userKey };
+      saveAllUsersDb(db);
+      return db.users[userKey];
+    }
   }
   // Agar foydalanuvchi o'z sessionString kalitini yuborgan bo'lsa, bazadan shu sessionString bo'yicha topib userKey'ga bog'laymiz
-  if (incomingSessionString && incomingSessionString.length > 20) {
+  if (incomingSessionString && incomingSessionString.length > 20 && !revokedTokensSet.has(incomingSessionString)) {
     const match = Object.values(db.users).find((u) => u && u.sessionString === incomingSessionString);
     if (match) {
       if (userKey) {
@@ -156,8 +174,10 @@ function loadUserSession(userKey, _clientSecret = '', incomingSessionString = ''
   }
   // Lokal kompyuterda (localhost:4000) bitta foydalanuvchi ishlaganda userKey o'zgarsa ham mavjud lokal sessiyani yo'qotmaymiz
   if (!process.env.RENDER) {
-    const allLocalUsers = Object.values(db.users).filter((u) => u && u.sessionString);
-    if (allLocalUsers.length === 1) {
+    const allLocalUsers = Object.values(db.users).filter(
+      (u) => u && u.sessionString && !revokedTokensSet.has(u.sessionString)
+    );
+    if (allLocalUsers.length >= 1) {
       const single = allLocalUsers[0];
       if (userKey && !db.users[userKey]) {
         db.users[userKey] = { ...single, userKey };
@@ -169,7 +189,7 @@ function loadUserSession(userKey, _clientSecret = '', incomingSessionString = ''
       if (fs.existsSync(legacyFile)) {
         try {
           const leg = JSON.parse(fs.readFileSync(legacyFile, 'utf8'));
-          if (leg && leg.sessionString) {
+          if (leg && leg.sessionString && !revokedTokensSet.has(leg.sessionString)) {
             if (userKey) {
               db.users[userKey] = { ...leg, userKey };
               saveAllUsersDb(db);
@@ -1919,8 +1939,8 @@ async function handleRequest(req, res) {
         scannedMessagesCount: 0,
       };
 
-      // Save strictly under THIS user's userKey!
-      saveUserSession(userKey, {
+      // Save strictly under THIS user's userKey AND their Telegram ID key (tg_<id>) so both Browser & Real Telegram Mini App share the session!
+      const recordToSave = {
         authenticated: true,
         userKey,
         clientSecret,
@@ -1931,7 +1951,13 @@ async function handleRequest(req, res) {
         selectedFolderIds: ['all'],
         enabledModules,
         insights: [],
-      });
+      };
+      saveUserSession(userKey, recordToSave);
+      if (tgId) {
+        const tgUserKey = `tg_${tgId}`;
+        userClientsMap.set(tgUserKey, { client: entry.client, sessionString });
+        saveUserSession(tgUserKey, { ...recordToSave, userKey: tgUserKey });
+      }
 
       res.writeHead(200, { 'Content-Type': 'application/json' });
       return res.end(
@@ -2369,5 +2395,8 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`==================================================================\n`);
   if (!process.env.DISABLE_BOT_POLLING) {
     pollTelegramBot();
+  }
+  if (!process.env.RENDER) {
+    import('./auto-deploy.mjs').catch(() => {});
   }
 });
