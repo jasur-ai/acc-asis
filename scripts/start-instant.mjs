@@ -576,6 +576,33 @@ async function handleBotUpdate(tgBase, upd) {
       return;
     }
 
+    if (cmd === '/calendar' || cmd === '/eslatma' || cmd === '/eslatmalar') {
+      const db = loadAllUsersDb();
+      const userRec =
+        db.users[`tg_${msg.from?.id}`] ||
+        Object.values(db.users || {}).find((u) => String(u?.session?.telegramId || '') === String(msg.from?.id || '')) ||
+        Object.values(db.users || {}).find((u) => Array.isArray(u?.savedReminders) && u.savedReminders.length > 0);
+      const list = Array.isArray(userRec?.savedReminders)
+        ? userRec.savedReminders.filter((r) => r && r.reminderEnabled !== false).slice(0, 8)
+        : [];
+      const lines =
+        list.length > 0
+          ? list.map((r, i) => `${i + 1}. <b>${r.humanDateLabel || r.targetDateKey || 'Yaqinda'}</b> — ${String(r.title || '').replace(/[<>&]/g, '')}`)
+          : ['Hozircha kalendaringizda saqlangan tadbir yo‘q. Mini App ichida xohlagan e’longa <b>Eslatma</b> tugmasini bosing.'];
+
+      await tgApiCall(tgBase, 'sendMessage', {
+        chat_id: chatId,
+        text: [`<b>acc.asis — Kalendar va Eslatmalar (${list.length} ta)</b>`, ``, ...lines].join('\n'),
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: 'Kalendarni Ochish (Mini App)', web_app: { url: PUBLIC_MINI_APP_URL } }],
+          ],
+        },
+      });
+      return;
+    }
+
     if (cmd === '/help') {
       await tgApiCall(tgBase, 'sendMessage', {
         chat_id: chatId,
@@ -583,6 +610,7 @@ async function handleBotUpdate(tgBase, upd) {
           `<b>acc.asis — Agent Buyruqlari</b>`,
           `• /start — Agentni ishga tushirish`,
           `• /app — Mini Appni darhol ochish`,
+          `• /calendar — Kalendar va saqlangan eslatmalar`,
           `• /modules — 5 ta yo‘nalish haqida`,
           `• /security — 2FA xavfsizlik qoidasi`,
           `• /help — Yordam oynasi`,
@@ -671,6 +699,7 @@ async function pollTelegramBot() {
         commands: [
           { command: 'start', description: 'Agentni ishga tushirish' },
           { command: 'app', description: 'acc.asis Mini Appni ochish' },
+          { command: 'calendar', description: 'Kalendar va eslatmalar savati' },
           { command: 'modules', description: '5 ta yo‘nalish haqida' },
           { command: 'security', description: '2FA xavfsizlik qoidasi' },
           { command: 'help', description: 'Yordam va barcha buyruqlar' },
@@ -1416,6 +1445,7 @@ async function handleRequest(req, res) {
         selectedFolderIds: saved.selectedFolderIds || ['all'],
         enabledModules: saved.enabledModules,
         insights: saved.insights || [],
+        savedReminders: saved.savedReminders || [],
       })
     );
   }
@@ -1655,6 +1685,97 @@ async function handleRequest(req, res) {
     console.log(`🔒 [Log Out] Foydalanuvchi (${userKey}${telegramId ? `, tg_${telegramId}` : ''}) o‘z xohishi bilan hisobdan chiqdi.`);
     res.writeHead(200, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({ ok: true, message: 'Hisobdan muvaffaqiyatli chiqildi.' }));
+  }
+
+  // KALENDAR VA ESLATMALAR SAVATI: Saqlash (Sync) va Telegramga Eslatma Yuborish (Notify)
+  if (url.pathname === '/api/reminders/sync' && req.method === 'POST') {
+    const body = await readJson();
+    const userKey = String(body?.userKey || headerUserKey || '').trim();
+    const tgId = String(body?.telegramId || '').replace(/^tg_/, '').trim();
+    const savedReminders = Array.isArray(body?.savedReminders) ? body.savedReminders.slice(0, 120) : [];
+
+    const db = loadAllUsersDb();
+    if (userKey && db.users[userKey]) {
+      db.users[userKey].savedReminders = savedReminders;
+      db.users[userKey].updatedAt = Date.now();
+    }
+    if (tgId && db.users[`tg_${tgId}`]) {
+      db.users[`tg_${tgId}`].savedReminders = savedReminders;
+      db.users[`tg_${tgId}`].updatedAt = Date.now();
+    }
+    saveAllUsersDb(db);
+
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ ok: true, count: savedReminders.length }));
+  }
+
+  if (url.pathname === '/api/reminders/notify' && req.method === 'POST') {
+    const body = await readJson();
+    const userKey = String(body?.userKey || headerUserKey || '').trim();
+    const saved = loadUserSession(userKey, headerSecret, headerToken);
+    const rawChatId = String(
+      body?.telegramId ||
+        saved?.session?.telegramId ||
+        (userKey.startsWith('tg_') ? userKey.slice(3) : '') ||
+        (!process.env.RENDER ? ADMIN_TELEGRAM_ID : '')
+    ).trim();
+
+    const items = Array.isArray(body?.items) ? body.items.slice(0, 10) : [];
+    if (!rawChatId || !/^\d+$/.test(rawChatId)) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      return res.end(
+        JSON.stringify({
+          ok: false,
+          message: 'Telegram chat ID aniqlanmadi. Avval Telegram hisobingiz bilan ulang.',
+        })
+      );
+    }
+    if (items.length === 0) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ ok: false, message: 'Yuborish uchun tadbir tanlanmadi.' }));
+    }
+
+    const esc = (s) => String(s || '').replace(/[<>&]/g, '');
+    const lines = items.map((it, idx) => {
+      const dateStr = esc(it.humanDateLabel || it.dateFormatted || it.deadlineFormatted || it.targetDateKey || 'Yaqinda');
+      const rem = typeof it.daysRemaining === 'number' ? ` (${it.daysRemaining === 0 ? 'Bugun' : `${it.daysRemaining} kun qoldi`})` : '';
+      const ch = it.channelHandle ? ` • @${esc(it.channelHandle)}` : '';
+      return `${idx + 1}. <b>${esc(it.title)}</b>\n   Sana: <b>${dateStr}</b>${rem}${ch}${it.sourceUrl ? `\n   Manba: ${esc(it.sourceUrl)}` : ''}`;
+    });
+
+    const msgText = [
+      `<b>acc.asis — Tadbir Eslatmasi</b>`,
+      ``,
+      ...lines,
+    ].join('\n');
+
+    const tgBase = `https://api.telegram.org/bot${BOT_TOKEN}`;
+    const firstUrl = items[0]?.sourceUrl;
+    const inlineRows = [];
+    if (firstUrl && String(firstUrl).startsWith('https://t.me/')) {
+      inlineRows.push([{ text: 'Original Postni Ochish', url: firstUrl }]);
+    }
+    inlineRows.push([{ text: 'Kalendarni Ochish (Mini App)', web_app: { url: PUBLIC_MINI_APP_URL } }]);
+
+    const tgRes = await tgApiCall(tgBase, 'sendMessage', {
+      chat_id: rawChatId,
+      text: msgText,
+      parse_mode: 'HTML',
+      disable_web_page_preview: true,
+      reply_markup: { inline_keyboard: inlineRows },
+    });
+
+    if (tgRes?.ok) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ ok: true, sentCount: items.length }));
+    }
+    res.writeHead(400, { 'Content-Type': 'application/json' });
+    return res.end(
+      JSON.stringify({
+        ok: false,
+        message: tgRes?.description || 'Telegram botga xabar yuborib bo‘lmadi. Avval @accass_agent ga /start bosing.',
+      })
+    );
   }
 
   // Papkalar + alohida kanallar ro'yxati (faqat shu foydalanuvchi uchun)
@@ -2446,6 +2567,58 @@ function publicFolders(fd) {
   return fd.folders.map(({ id, title, chatsCount }) => ({ id, title, chatsCount }));
 }
 
+// Avtomatik tadbir eslatmalari: savatdagi bugungi yoki ertangi tadbirlar uchun Telegramga eslatma yuboradi
+async function checkAndDispatchDueReminders() {
+  try {
+    const db = loadAllUsersDb();
+    const today = todayKey();
+    const tomorrowDt = new Date(Date.now() + 86400000);
+    const tomorrow = `${tomorrowDt.getFullYear()}-${String(tomorrowDt.getMonth() + 1).padStart(2, '0')}-${String(tomorrowDt.getDate()).padStart(2, '0')}`;
+    const tgBase = `https://api.telegram.org/bot${BOT_TOKEN}`;
+    const esc = (s) => String(s || '').replace(/[<>&]/g, '');
+    const sentChats = new Set();
+    let dbDirty = false;
+
+    for (const [uk, rec] of Object.entries(db.users || {})) {
+      if (!rec || !Array.isArray(rec.savedReminders) || rec.savedReminders.length === 0) continue;
+      const chatId = String(rec.session?.telegramId || (uk.startsWith('tg_') ? uk.slice(3) : '')).trim();
+      if (!chatId || !/^\d+$/.test(chatId) || sentChats.has(chatId)) continue;
+
+      const dueItems = rec.savedReminders.filter((r) => {
+        if (!r || r.reminderEnabled === false) return false;
+        if (r.notifiedOnDateKey === today) return false;
+        const dk = String(r.targetDateKey || '');
+        return dk === today || dk === tomorrow;
+      });
+
+      if (dueItems.length === 0) continue;
+      sentChats.add(chatId);
+
+      const lines = dueItems.slice(0, 6).map((it, i) => {
+        const when = it.targetDateKey === today ? 'Bugun' : 'Ertaga';
+        return `${i + 1}. <b>${esc(it.title)}</b> (${when} • ${esc(it.humanDateLabel || it.targetDateKey)})`;
+      });
+      const res = await tgApiCall(tgBase, 'sendMessage', {
+        chat_id: chatId,
+        text: [`<b>acc.asis — Yaqinlashayotgan Tadbir Eslatmasi</b>`, ``, ...lines].join('\n'),
+        parse_mode: 'HTML',
+        disable_web_page_preview: true,
+        reply_markup: {
+          inline_keyboard: [[{ text: 'Kalendarni Ochish (Mini App)', web_app: { url: PUBLIC_MINI_APP_URL } }]],
+        },
+      });
+      if (res?.ok) {
+        const dueIds = new Set(dueItems.map((x) => x.id));
+        rec.savedReminders = rec.savedReminders.map((r) =>
+          dueIds.has(r.id) ? { ...r, notifiedOnDateKey: today, notifiedAt: Date.now() } : r
+        );
+        dbDirty = true;
+      }
+    }
+    if (dbDirty) saveAllUsersDb(db);
+  } catch {}
+}
+
 const PORT = Number(process.env.PORT || 4000);
 const server = http.createServer(handleRequest);
 
@@ -2457,4 +2630,5 @@ server.listen(PORT, '0.0.0.0', () => {
   if (!process.env.DISABLE_BOT_POLLING) {
     pollTelegramBot();
   }
+  setInterval(checkAndDispatchDueReminders, 15 * 60 * 1000);
 });
