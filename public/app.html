@@ -1173,67 +1173,19 @@
     }
 
     function ensureUserFoldersChatsAndInsights() {
-      // Bir martalik tiklash: agar avvalgi testdan 4 ta modul o'chiq (faqat 1 tasi yoniq) qolib ketgan bo'lsa, 5 ta yo'nalishni ham faollashtiramiz
       if (!localStorage.getItem('acas_all5_recovered_v4')) {
         localStorage.setItem('acas_all5_recovered_v4', '1');
         state.enabledModules = { events: true, conferences: true, volunteering: true, scholarships: true, competitions: true };
         state.draftEnabledModules = { ...state.enabledModules };
       }
-
-      // 1. Agar serverdan faqat 1 dona "Barcha kanallar va guruhlar (0)" kelgan bo'lsa, haqiqiy papkalarni tiklaymiz
-      if (!Array.isArray(state.folders) || state.folders.length <= 1) {
-        state.folders = REAL_ACCOUNT_FOLDERS_SNAPSHOT.map(f => ({ ...f }));
-      }
-      // 2. Agar alohida kanallar ro'yxati bo'sh bo'lsa, haqiqiy kanallar + e'lonlardagi kanallarni tiklaymiz
-      if (!Array.isArray(state.chats) || state.chats.length === 0) {
-        const chatMap = new Map();
-        for (const c of REAL_ACCOUNT_CHATS_SNAPSHOT) {
-          chatMap.set(c.id, { ...c });
-        }
-        for (const it of state.items || []) {
-          if (it && it.channelHandle) {
-            const cid = `chat_${it.channelHandle}`;
-            if (!chatMap.has(cid)) {
-              chatMap.set(cid, {
-                id: cid,
-                title: it.channelTitle || it.channelHandle,
-                username: it.channelHandle,
-                isChannel: true,
-                chatsCount: 1,
-                folders: ['all', 'folder_3', 'folder_6', 'folder_7', 'folder_8', 'smart_channels']
-              });
-            }
-          }
-        }
-        state.chats = Array.from(chatMap.values());
-      }
-      // 3. E'lonlarni birlashtiramiz va bazadagi 185+ haqiqiy e'lonlarni ham tortib olamiz
-      if (!Array.isArray(state.items) || state.items.length < 25) {
-        mergeInsightsIntoState(vaultInsightsCache);
-        if (!vaultInsightsLoaded) {
-          loadFullVaultInsightsFromServer();
-        }
+      // Agar serverdan haqiqiy jonli chatlar kelgan bo'lsa (yangi login qilinganda), faqat jonli ma'lumotlarni ishlatamiz!
+      if (Array.isArray(state.chats) && state.chats.length > 12) {
+        return;
       }
     }
 
-    function itemMatchesSelectedFoldersAndChats(item) {
-      const sel = state.selectedFolderIds || ['all'];
-      if (sel.length === 0 || sel.includes('all')) return true;
-      const handle = item.channelHandle || '';
-      const chatId = `chat_${handle}`;
-      if (sel.includes(chatId)) return true;
-
-      const chatMeta =
-        REAL_ACCOUNT_CHATS_SNAPSHOT.find(c => c.username === handle || c.id === chatId) ||
-        (state.chats || []).find(c => c.username === handle || c.id === chatId);
-      if (chatMeta && Array.isArray(chatMeta.folders)) {
-        if (chatMeta.folders.some(fid => sel.includes(fid))) return true;
-      }
-      // Agar folder_8 (Articles), folder_3 (channels) yoki smart_channels tanlangan bo'lsa
-      if (sel.includes('folder_8') || sel.includes('folder_3') || sel.includes('smart_channels')) {
-        return true;
-      }
-      return false;
+    function itemMatchesSelectedFoldersAndChats(_item) {
+      return true;
     }
 
     async function loadFoldersFromServer(forceRefresh = false) {
@@ -1395,12 +1347,37 @@
       } catch {}
     }
 
+    const REVOKED_DEAD_TOKEN_PREFIX = '1AgAOMTQ5LjE1NC4xNjcuNTABuy0fJV5Rujc3G0jg6T0EkfbhpquW1A';
+
+    function purgeDeadTokenFromBrowserStorage() {
+      let purged = false;
+      for (const k of [STORAGE_KEY_SESSION, STORAGE_KEY_PERM, 'acas_saved_session', 'acas_permanent_auth']) {
+        try {
+          const raw = localStorage.getItem(k);
+          if (raw && raw.includes(REVOKED_DEAD_TOKEN_PREFIX)) {
+            localStorage.removeItem(k);
+            purged = true;
+          }
+        } catch {}
+      }
+      if (purged) {
+        removeTelegramCloudStorage(STORAGE_KEY_CLOUD);
+        removeTelegramCloudStorage('acas_cloud_auth');
+      }
+      return purged;
+    }
+
     function loadBestLocalCachedSession() {
+      purgeDeadTokenFromBrowserStorage();
       for (const k of [STORAGE_KEY_SESSION, STORAGE_KEY_PERM, 'acas_saved_session', 'acas_permanent_auth']) {
         const raw = localStorage.getItem(k);
         if (raw) {
           try {
             const p = JSON.parse(raw);
+            if (p && p.sessionString && p.sessionString.startsWith(REVOKED_DEAD_TOKEN_PREFIX)) {
+              localStorage.removeItem(k);
+              continue;
+            }
             if (p && (p.sessionString || p.session)) return p;
           } catch {}
         }
@@ -1408,24 +1385,33 @@
       return null;
     }
 
-    // Har bir foydalanuvchining o'z kirgan hisobi (userKey bo'yicha) tekshiriladi va HECH QACHON auto-logout qilinmaydi!
+    // Har bir foydalanuvchining o'z kirgan hisobi (userKey bo'yicha) tekshiriladi
     async function checkExistingSession() {
+      const wasDeadPurged = purgeDeadTokenFromBrowserStorage();
       let cachedParsed = loadBestLocalCachedSession();
       if (!cachedParsed || !cachedParsed.sessionString) {
         const cloudSaved =
           (await readTelegramCloudStorage(STORAGE_KEY_CLOUD)) ||
           (await readTelegramCloudStorage('acas_cloud_auth'));
-        if (cloudSaved && (cloudSaved.sessionString || cloudSaved.session)) {
+        if (cloudSaved && cloudSaved.sessionString && !cloudSaved.sessionString.startsWith(REVOKED_DEAD_TOKEN_PREFIX)) {
           cachedParsed = { ...(cachedParsed || {}), ...cloudSaved };
         }
       }
 
-      // 1. Agar brauzerda yoki Telegram CloudStorage'da saqlangan sessiya bo'lsa — UI ni darhol ko'rsatamiz (lekin serverga parallel 3 ta so'rov yubormaymiz!)
+      if (wasDeadPurged && !cachedParsed) {
+        showAuthMsg(
+          'Avvalgi MTProto sessiya kaliti Telegram tomonidan bekor qilingan (AUTH_KEY_UNREGISTERED). Yangi jonli sessiya yaratish uchun raqamingiz bilan qayta kiring.',
+          false
+        );
+        return;
+      }
+
+      // 1. Agar brauzerda yoki Telegram CloudStorage'da saqlangan yaroqli sessiya bo'lsa — UI ni darhol ko'rsatamiz
       if (cachedParsed && cachedParsed.session) {
         activateAuthenticatedView(cachedParsed, true, true);
       }
 
-      // 2. Serverdan (/api/auth/session) ketma-ket tekshiramiz — MTProto sessiya to'qnashmasligi uchun
+      // 2. Serverdan (/api/auth/session) ketma-ket tekshiramiz
       await resolveApiBase();
       try {
         const res = await fetch(API_BASE + '/api/auth/session', {
@@ -1443,6 +1429,10 @@
         });
         const data = await res.json();
         if (data.ok && data.authenticated && data.session) {
+          if (data.sessionString && data.sessionString.startsWith(REVOKED_DEAD_TOKEN_PREFIX)) {
+            purgeDeadTokenFromBrowserStorage();
+            return;
+          }
           activateAuthenticatedView(data, false, false);
           return;
         }
@@ -1732,15 +1722,10 @@
       });
       es.addEventListener('done', async (ev) => {
         const d = JSON.parse(ev.data);
-        if (!clearedForNewItems || state.items.length < 25) {
-          await loadFullVaultInsightsFromServer();
+        if (!clearedForNewItems && d.total > 0 && d.found === 0) {
+          state.items = [];
         }
-        ensureUserFoldersChatsAndInsights();
-        const visibleCount = state.items.filter(
-          it => state.enabledModules[it.moduleId] && itemMatchesSelectedFoldersAndChats(it)
-        ).length;
-        const chatTotal = d.total > 0 ? d.total : (state.chats?.length || 11);
-        finish(`${chatTotal} chat · ${visibleCount} ta e’lon`);
+        finish(`${d.total} chat · ${d.found} ta e’lon`);
       });
       es.addEventListener('scan-error', (ev) => {
         const d = JSON.parse(ev.data);
