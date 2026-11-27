@@ -196,12 +196,62 @@ function saveUserSession(userKey, data) {
   saveAllUsersDb(db);
 }
 
+const revokedTokensSet = new Set([
+  '1AgAOMTQ5LjE1NC4xNjcuNTABuy0fJV5Rujc3G0jg6T0EkfbhpquW1A+doPKxgy0OkaEvInhLAKnBLsmQiZab8X6MrhCe9X21D9B3/2fLdvAFe0UMfHWRTcDvP0y7ZzTMsYhmmqalRe5p9CdQetfzs9/7DeFBbH791Lce7fg5WcCTr21bu0yfozdOfPCHsNyJFPbukexhIQAmYjkDFkcrHsb/Fsz/eMV/D7xwMPpql0fEJ9sstHZ3VtYe4DSpv7QdcfVJ/Vm7U/kgCbNNxclCXqt7T+2UgIibFRnSXA8j5RCEH1+UEEZNSEB9LE6h63deeHId+L37uzlBtsm+RP/i+U3biWn9RlDvumF91DNZ1X4SwSo=',
+]);
+
+function isAuthKeyUnregisteredError(err) {
+  const msg = String(err?.errorMessage || err?.message || err || '');
+  return (
+    msg.includes('AUTH_KEY_UNREGISTERED') ||
+    msg.includes('AUTH_KEY_DUPLICATED') ||
+    msg.includes('SESSION_REVOKED') ||
+    msg.includes('USER_DEACTIVATED')
+  );
+}
+
+async function purgeDeadSessionToken(deadToken) {
+  if (!deadToken) return;
+  revokedTokensSet.add(deadToken);
+  for (const [k, conn] of userClientsMap.entries()) {
+    if (conn && conn.sessionString === deadToken) {
+      try {
+        await conn.client?.disconnect?.();
+      } catch {}
+      userClientsMap.delete(k);
+    }
+  }
+  const db = loadAllUsersDb();
+  let changed = false;
+  for (const [uk, rec] of Object.entries(db.users || {})) {
+    if (rec && rec.sessionString === deadToken) {
+      delete db.users[uk];
+      changed = true;
+    }
+  }
+  if (changed) saveAllUsersDb(db);
+  for (const legacyFile of [LEGACY_SESSION_FILE, LEGACY_BACKUP_FILE]) {
+    if (fs.existsSync(legacyFile)) {
+      try {
+        const leg = JSON.parse(fs.readFileSync(legacyFile, 'utf8'));
+        if (leg && leg.sessionString === deadToken) {
+          fs.writeFileSync(legacyFile, '{}', 'utf8');
+        }
+      } catch {}
+    }
+  }
+}
+
 function clearUserSession(userKey) {
   if (!userKey) return;
   const db = loadAllUsersDb();
+  const deadToken = db.users[userKey]?.sessionString;
   if (db.users[userKey]) {
     delete db.users[userKey];
     saveAllUsersDb(db);
+  }
+  if (deadToken) {
+    purgeDeadSessionToken(deadToken);
   }
 }
 
@@ -662,7 +712,10 @@ async function getOrRestoreAuthenticatedClient(userKey, clientSecret = '', incom
 
   let saved = loadUserSession(userKey, clientSecret, incomingSessionString);
   const candidateToken = String(incomingSessionString || saved?.sessionString || '').trim();
-  if (!candidateToken || candidateToken.length < 20) {
+  if (!candidateToken || candidateToken.length < 20 || revokedTokensSet.has(candidateToken)) {
+    if (revokedTokensSet.has(candidateToken)) {
+      await purgeDeadSessionToken(candidateToken);
+    }
     return null;
   }
 
@@ -672,7 +725,12 @@ async function getOrRestoreAuthenticatedClient(userKey, clientSecret = '', incom
       if (existingConn.client.connected) return existingConn.client;
       await existingConn.client.connect();
       return existingConn.client;
-    } catch {}
+    } catch (e) {
+      if (isAuthKeyUnregisteredError(e)) {
+        await purgeDeadSessionToken(candidateToken);
+        return null;
+      }
+    }
     userClientsMap.delete(userKey);
   }
 
@@ -683,7 +741,12 @@ async function getOrRestoreAuthenticatedClient(userKey, clientSecret = '', incom
         if (!conn.client.connected) await conn.client.connect();
         userClientsMap.set(userKey, conn);
         return conn.client;
-      } catch {}
+      } catch (e) {
+        if (isAuthKeyUnregisteredError(e)) {
+          await purgeDeadSessionToken(candidateToken);
+          return null;
+        }
+      }
     }
   }
 
@@ -722,30 +785,39 @@ async function getOrRestoreAuthenticatedClient(userKey, clientSecret = '', incom
       }
     );
     await client.connect();
-    userClientsMap.set(userKey, { client, sessionString: candidateToken });
 
-    if (!saved.session?.firstName || saved.session.firstName === 'Profil' || !saved.session?.telegramId) {
-      try {
-        const me = await client.getMe();
-        if (me) {
-          const tgId = String(me.id || '').replace(/^-/, '').trim();
-          const isAdmin = tgId === ADMIN_TELEGRAM_ID || String(userKey).replace(/^tg_/, '') === ADMIN_TELEGRAM_ID;
-          saved.session = {
-            ...saved.session,
-            telegramId: tgId,
-            isAdmin,
-            phoneNumber: saved.session?.phoneNumber || (me.phone ? `+${me.phone}` : '2FA Hisob'),
-            firstName: [me.firstName, me.lastName].filter(Boolean).join(' ') || 'Profil',
-            username: me.username || '',
-            twoFactorVerified: true,
-          };
-          saveUserSession(userKey, saved);
-        }
-      } catch {}
+    // Haqiqatan ham AUTH_KEY tirik ekanligini getMe() orqali tekshiramiz; agar AUTH_KEY_UNREGISTERED bo'lsa darhol tozalaymiz!
+    try {
+      const me = await client.getMe();
+      if (me) {
+        const tgId = String(me.id || '').replace(/^-/, '').trim();
+        const isAdmin = tgId === ADMIN_TELEGRAM_ID || String(userKey).replace(/^tg_/, '') === ADMIN_TELEGRAM_ID;
+        saved.session = {
+          ...saved.session,
+          telegramId: tgId,
+          isAdmin,
+          phoneNumber: saved.session?.phoneNumber || (me.phone ? `+${me.phone}` : '2FA Hisob'),
+          firstName: [me.firstName, me.lastName].filter(Boolean).join(' ') || 'Profil',
+          username: me.username || '',
+          twoFactorVerified: true,
+        };
+        saveUserSession(userKey, saved);
+      }
+    } catch (authErr) {
+      if (isAuthKeyUnregisteredError(authErr)) {
+        console.warn(`⚠️ [MTProto | ${userKey}] AUTH_KEY_UNREGISTERED — eski sessiya kaliti Telegram tomonidan bekor qilingan. Tozalanmoqda...`);
+        try { await client.disconnect(); } catch {}
+        await purgeDeadSessionToken(candidateToken);
+        return null;
+      }
     }
 
+    userClientsMap.set(userKey, { client, sessionString: candidateToken });
     return client;
   } catch (e) {
+    if (isAuthKeyUnregisteredError(e)) {
+      await purgeDeadSessionToken(candidateToken);
+    }
     console.error(`Restore session note [${userKey}]:`, e.message);
     return null;
   }
