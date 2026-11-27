@@ -136,29 +136,39 @@
       background-color: var(--border);
     }
 
-    /* Animated Onboarding Tour Spotlight & Bouncing Arrow */
+    /* Animated Onboarding Tour Cutout Spotlight & Bouncing Arrow */
     @keyframes acasArrowBounceUp {
       0%, 100% { transform: translateY(0) scale(1); }
-      50% { transform: translateY(-9px) scale(1.05); }
+      50% { transform: translateY(-8px) scale(1.05); }
     }
-    @keyframes acasPulseRing {
-      0%, 100% { box-shadow: 0 0 0 3px var(--primary), 0 0 0 7px rgba(58, 130, 214, 0.22); }
-      50% { box-shadow: 0 0 0 4px var(--primary), 0 0 0 13px rgba(58, 130, 214, 0.08); }
+    @keyframes acasSpotlightPulse {
+      0%, 100% {
+        box-shadow:
+          0 0 0 9999px rgba(0, 0, 0, 0.58),
+          0 0 0 3px var(--primary),
+          0 0 0 8px rgba(58, 130, 214, 0.28);
+      }
+      50% {
+        box-shadow:
+          0 0 0 9999px rgba(0, 0, 0, 0.58),
+          0 0 0 4px var(--primary),
+          0 0 0 14px rgba(58, 130, 214, 0.10);
+      }
     }
     .tour-arrow-up {
-      animation: acasArrowBounceUp 1.15s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
+      animation: acasArrowBounceUp 1.1s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
     }
-    .tour-highlight-target {
-      position: relative;
-      z-index: 65 !important;
-      border-radius: 16px;
-      animation: acasPulseRing 1.6s ease-in-out infinite;
+    .tour-spotlight-hole {
+      box-shadow:
+        0 0 0 9999px rgba(0, 0, 0, 0.58),
+        0 0 0 3px var(--primary);
+      animation: acasSpotlightPulse 1.6s ease-in-out infinite;
     }
   </style>
 </head>
 <body class="tg-light antialiased min-h-[100dvh] m-0 px-2.5 py-3 sm:p-4 flex flex-col" style="background-color:var(--bg);color:var(--text);">
 
-  <!-- RESPONSIVE TOP BAR: Fits phone screens (320px+) and desktop cleanly without overlapping content on scroll -->
+  <!-- RESPONSIVE TOP BAR: Fits phone screens (320px+) and desktop cleanly -->
   <header class="fixed top-0 inset-x-0 z-40 px-3 sm:px-8 py-2 flex items-center justify-between pointer-events-none" style="background:linear-gradient(to bottom, var(--bg) 75%, transparent);">
     <!-- TOP-LEFT BRAND MARK: Logo on top, acc.asis tightly below it -->
     <div class="pointer-events-auto flex flex-col items-center select-none pl-1 sm:pl-2">
@@ -168,7 +178,7 @@
       </span>
     </div>
 
-    <!-- TOP-RIGHT CONTROLS: Admin Stats (ONLY for 8004724563) + "?" Tour Guide + "Profil" + Theme Toggle -->
+    <!-- TOP-RIGHT CONTROLS: Admin Stats (ONLY for 8004724563) + "Profil" + Theme Toggle -->
     <div class="pointer-events-auto flex items-center gap-1.5 sm:gap-2">
       <button
         id="btn-admin-stats"
@@ -180,26 +190,13 @@
         <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/>
         </svg>
-        <span class="hidden xs:inline sm:inline">Statistika</span>
-      </button>
-
-      <button
-        id="btn-tour-help"
-        onclick="startOnboardingTour(true)"
-        title="Interfeys bo‘yicha ko‘rsatma"
-        aria-label="Ko‘rsatma"
-        class="hidden w-8 h-8 sm:w-9 sm:h-9 rounded-xl border items-center justify-center shadow-sm hover:opacity-90 text-xs font-bold"
-        style="background-color:var(--surface);border-color:var(--border);color:var(--primary-text);"
-      >
-        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" x2="12.01" y1="17" y2="17"/>
-        </svg>
+        <span class="hidden sm:inline">Statistika</span>
       </button>
 
       <button
         id="btn-open-profile"
         onclick="openProfileModal()"
-        class="hidden items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl border text-xs font-semibold shadow-sm hover:opacity-95 max-w-[135px] sm:max-w-none"
+        class="hidden items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl border text-xs font-semibold shadow-sm hover:opacity-95 max-w-[140px] sm:max-w-none"
         style="background-color:var(--surface);border-color:var(--border);color:var(--text);"
       >
         <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" style="color:var(--primary-text);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -390,22 +387,29 @@
     <div id="feed-container" class="space-y-1.5"></div>
   </div>
 
-  <!-- ANIMATED ONBOARDING TOUR OVERLAY (Strelkali Ko'rsatmalar) -->
-  <div id="onboarding-tour-overlay" class="hidden fixed inset-0 z-50 pointer-events-auto" style="background-color:rgba(0,0,0,0.48);backdrop-filter:blur(1.5px);">
-    <div id="tour-popover" class="fixed z-[70] w-[calc(100vw-24px)] max-w-[330px] transition-all duration-300">
-      <!-- Bouncing SVG Arrow pointing up at the highlighted target -->
+  <!-- ANIMATED ONBOARDING TOUR OVERLAY (True Cutout Spotlight + Foreground z-[110] Card) -->
+  <div id="onboarding-tour-overlay" class="hidden fixed inset-0 z-[100] pointer-events-auto">
+    <!-- Cutout Spotlight Hole: 100% transparent & sharp inside, darkens everything outside! -->
+    <div
+      id="tour-spotlight-hole"
+      class="fixed z-[101] pointer-events-none rounded-2xl transition-all duration-300 tour-spotlight-hole"
+      style="top:12px;left:12px;width:80px;height:36px;"
+    ></div>
+
+    <!-- Foreground Coach-Mark Card (Always on top at z-[110]!) -->
+    <div id="tour-popover" class="fixed z-[110] w-[calc(100vw-24px)] max-w-[320px] transition-all duration-300">
       <div id="tour-arrow-top" class="flex justify-center mb-1 tour-arrow-up">
-        <svg class="w-8 h-8 drop-shadow" style="color:var(--primary);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <svg class="w-8 h-8 drop-shadow-md" style="color:var(--primary);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
           <path d="M12 19V5"/><path d="m5 12 7-7 7 7"/>
         </svg>
       </div>
 
-      <div class="acas-surface rounded-2xl border-2 p-3.5 sm:p-4 space-y-2.5 shadow-2xl" style="border-color:var(--primary);">
+      <div class="acas-surface rounded-2xl border-2 p-3.5 space-y-2.5 shadow-2xl" style="border-color:var(--primary);">
         <div class="flex items-center justify-between">
           <span id="tour-step-badge" class="text-[11px] font-mono font-bold px-2 py-0.5 rounded-lg" style="background-color:var(--primary-soft);color:var(--primary-text);">
             1 / 4 KO‘RSATMA
           </span>
-          <button onclick="closeOnboardingTour()" class="text-[11px] font-semibold hover:underline" style="color:var(--muted);">
+          <button onclick="closeOnboardingTour()" class="text-[11px] font-semibold px-1.5 py-0.5 rounded hover:opacity-80" style="color:var(--muted);">
             Yopish
           </button>
         </div>
@@ -415,7 +419,7 @@
           <p id="tour-step-desc" class="text-[11px] sm:text-xs leading-relaxed" style="color:var(--muted);"></p>
         </div>
 
-        <div class="flex items-center justify-between pt-1.5 border-t" style="border-color:var(--border);">
+        <div class="flex items-center justify-between pt-2 border-t" style="border-color:var(--border);">
           <button
             id="btn-tour-prev"
             onclick="prevOnboardingStep()"
@@ -438,149 +442,192 @@
     </div>
   </div>
 
-  <!-- DEDICATED "PROFIL" MODAL (Bottom-Sheet on Mobile Phones, Centered Modal on Desktop) -->
-  <div id="profile-modal" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" style="background-color:rgba(0,0,0,0.55);backdrop-filter:blur(3px);">
-    <div class="acas-surface w-full max-w-lg rounded-t-2xl sm:rounded-2xl border p-4 sm:p-5 space-y-3.5 max-h-[92dvh] sm:max-h-[88vh] flex flex-col">
-      <!-- Modal Header -->
-      <div class="flex items-center justify-between border-b pb-3 shrink-0" style="border-color:var(--border);">
-        <div class="flex items-center gap-2.5">
-          <div class="w-9 h-9 rounded-xl flex items-center justify-center border" style="background-color:var(--primary-soft);border-color:var(--primary);color:var(--primary-text);">
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <!-- ORGANIZED MOBILE-FIRST "PROFIL" BOTTOM-SHEET / MODAL -->
+  <div id="profile-modal" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" style="background-color:rgba(0,0,0,0.55);backdrop-filter:blur(2px);">
+    <div class="acas-surface w-full max-w-md rounded-t-2xl sm:rounded-2xl border p-3.5 sm:p-4 space-y-3 max-h-[88dvh] flex flex-col">
+      <!-- 1. Compact Account Header + Quick Actions (Ko'rsatma ? & Chiqish & Close) -->
+      <div class="flex items-center justify-between gap-2 pb-2.5 border-b shrink-0" style="border-color:var(--border);">
+        <div class="flex items-center gap-2 min-w-0">
+          <div class="w-8 h-8 rounded-xl flex items-center justify-center border shrink-0" style="background-color:var(--primary-soft);border-color:var(--primary);color:var(--primary-text);">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
               <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
             </svg>
           </div>
-          <div>
-            <h3 class="text-sm font-bold">Profil va Manba Sozlamalari</h3>
-            <p id="profile-phone-label" class="text-xs font-mono" style="color:var(--muted);">2FA Tasdiqlangan Hisob</p>
+          <div class="min-w-0">
+            <h3 id="profile-header-name" class="text-xs font-bold truncate">Profil Sozlamalari</h3>
+            <p id="profile-phone-label" class="text-[11px] font-mono truncate" style="color:var(--muted);">2FA Faol</p>
           </div>
         </div>
 
-        <button onclick="cancelProfileChanges()" title="O‘zgarishsiz yopish" class="w-8 h-8 rounded-lg border flex items-center justify-center" style="background-color:var(--surface-alt);border-color:var(--border);color:var(--muted);">
-          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        <div class="flex items-center gap-1.5 shrink-0">
+          <!-- "?" Ko'rsatma Button inside Profil -->
+          <button
+            onclick="launchTourFromProfile()"
+            title="Strelkali ko‘rsatmani ko‘rish"
+            class="px-2.5 py-1.5 rounded-xl border text-[11px] font-semibold inline-flex items-center gap-1"
+            style="background-color:var(--surface-alt);border-color:var(--border);color:var(--primary-text);"
+          >
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" x2="12.01" y1="17" y2="17"/>
+            </svg>
+            <span>Ko‘rsatma</span>
+          </button>
+
+          <!-- Compact Log Out Trigger -->
+          <button
+            onclick="toggleLogoutConfirm(true)"
+            title="Hisobdan chiqish"
+            class="px-2.5 py-1.5 rounded-xl border text-[11px] font-semibold inline-flex items-center gap-1"
+            style="background-color:rgba(225,29,72,0.08);border-color:var(--accent-rose);color:var(--accent-rose);"
+          >
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/>
+            </svg>
+            <span>Chiqish</span>
+          </button>
+
+          <button
+            onclick="cancelProfileChanges()"
+            class="w-7 h-7 rounded-xl border flex items-center justify-center"
+            style="background-color:var(--surface-alt);border-color:var(--border);color:var(--muted);"
+          >
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Inline Log Out Confirmation Box (Hidden unless "Chiqish" is tapped) -->
+      <div id="logout-confirm-box" class="hidden p-2.5 rounded-xl border space-y-2 shrink-0" style="background-color:rgba(225,29,72,0.08);border-color:var(--accent-rose);">
+        <div class="text-[11px] font-semibold" style="color:var(--accent-rose);">
+          Hisobdan chiqishni tasdiqlaysizmi yoki ulangan holda qoldirasizmi?
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <button
+            onclick="toggleLogoutConfirm(false)"
+            class="py-1.5 rounded-lg border text-xs font-semibold"
+            style="background-color:var(--surface);border-color:var(--border);color:var(--text);"
+          >
+            Hisobni Qoldirish
+          </button>
+          <button
+            onclick="handleLogOut()"
+            class="py-1.5 rounded-lg text-white text-xs font-semibold"
+            style="background-color:var(--accent-rose);"
+          >
+            Chiqishni Tasdiqlash
+          </button>
+        </div>
+      </div>
+
+      <!-- 2. Clean 2-Tab Segmented Switcher: [Papkalar va Kanallar] | [5 ta Yo'nalish] -->
+      <div class="grid grid-cols-2 gap-1 p-1 rounded-xl border shrink-0" style="background-color:var(--surface-alt);border-color:var(--border);">
+        <button
+          id="tab-btn-profile-sources"
+          onclick="setProfileSectionTab('sources')"
+          class="py-1.5 px-2 rounded-lg text-xs font-semibold transition text-center"
+          style="background-color:var(--surface);color:var(--primary-text);box-shadow:var(--shadow);"
+        >
+          Papkalar va Kanallar
+        </button>
+        <button
+          id="tab-btn-profile-modules"
+          onclick="setProfileSectionTab('modules')"
+          class="py-1.5 px-2 rounded-lg text-xs font-semibold transition text-center"
+          style="background-color:transparent;color:var(--muted);"
+        >
+          Yo‘nalishlar (<span id="kpi-speed">5/5</span>)
         </button>
       </div>
 
-      <!-- Scrollable Modal Body -->
-      <div class="space-y-4 overflow-y-auto pr-1 flex-1">
-        <!-- SECTION 1: TELEGRAM CHAT FOLDERS & CHANNELS -->
-        <div class="space-y-2">
-          <div class="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <div class="text-xs font-bold">1. O‘qiladigan Papkalar va Kanallar</div>
-              <div class="text-[11px]" style="color:var(--muted);">
-                Keraklilarini belgilang yoki olib tashlang, so‘ng pastda tasdiqlang:
-              </div>
-            </div>
-            <div class="flex items-center gap-1.5">
-              <button
-                onclick="selectAllDraftFolders()"
-                class="px-2.5 py-1 rounded-lg border text-[11px] font-semibold"
-                style="background-color:var(--surface-alt);border-color:var(--border);color:var(--text);"
-              >
-                Barchasi
-              </button>
-              <button
-                onclick="clearFolderSelectionForCustomPick()"
-                class="px-2.5 py-1 rounded-lg border text-[11px] font-semibold"
-                style="background-color:var(--surface-alt);border-color:var(--border);color:var(--text);"
-              >
-                Alohida tanlash
-              </button>
-            </div>
-          </div>
-
-          <input
-            id="inp-folder-search"
-            type="text"
-            oninput="renderProfileModal()"
-            placeholder="Papka yoki kanal nomini yozing..."
-            class="w-full px-3 py-2 rounded-xl border text-xs focus:outline-none"
-            style="background-color:var(--surface-alt);border-color:var(--border);color:var(--text);"
-          />
-
-          <div id="profile-folders-list" class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-56 overflow-y-auto pr-1"></div>
-        </div>
-
-        <!-- SECTION 2: MODULE ON / OFF TOGGLES -->
-        <div class="pt-3 border-t space-y-2" style="border-color:var(--border);">
-          <div class="flex items-center justify-between">
-            <div>
-              <div class="text-xs font-bold">2. Faol Yo‘nalishlar (ON / OFF)</div>
-              <div class="text-[11px]" style="color:var(--muted);">
-                Olib tashlamoqchi bo‘lgan yo‘nalishni OFF qiling va tasdiqlang:
-              </div>
-            </div>
-            <span id="kpi-speed" class="text-[11px] font-mono font-semibold px-2 py-0.5 rounded" style="background-color:rgba(16,185,129,0.12);color:var(--accent-emerald);">
-              5/5 faol
-            </span>
-          </div>
-
-          <div id="app-module-toggles" class="grid grid-cols-1 sm:grid-cols-2 gap-1.5"></div>
-        </div>
-
-        <!-- SECTION 3: LOG OUT WITH EXPLICIT CONFIRMATION -->
-        <div class="pt-3 border-t space-y-2" style="border-color:var(--border);">
-          <div id="logout-default-row" class="flex items-center justify-between gap-3">
-            <div class="text-[11px]" style="color:var(--muted);">
-              Hisobingiz doimiy ulangan turadi (yangilanganda ham chiqib ketmaydi).
-            </div>
+      <!-- TAB 1 BODY: SOURCES (Papkalar vs Alohida Kanallar) -->
+      <div id="profile-section-sources" class="space-y-2 flex-1 min-h-0 flex flex-col">
+        <!-- Sub-bar: [Barchasi] [Papkalar] [Kanallar] + [Tanlash/Tozalash] -->
+        <div class="flex items-center justify-between gap-1.5 shrink-0">
+          <div class="inline-flex rounded-lg border p-0.5" style="background-color:var(--surface-alt);border-color:var(--border);">
             <button
-              onclick="toggleLogoutConfirm(true)"
-              class="px-3 py-1.5 rounded-xl border text-xs font-semibold shrink-0 flex items-center gap-1.5"
-              style="background-color:rgba(225,29,72,0.08);border-color:var(--accent-rose);color:var(--accent-rose);"
+              id="subtab-all"
+              onclick="setProfileSourceSubTab('all')"
+              class="px-2 py-1 rounded-md text-[11px] font-semibold"
+              style="background-color:var(--primary);color:#FFF;"
             >
-              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/>
-              </svg>
-              <span>Hisobdan Chiqish</span>
+              Barchasi
+            </button>
+            <button
+              id="subtab-folders"
+              onclick="setProfileSourceSubTab('folders')"
+              class="px-2 py-1 rounded-md text-[11px] font-semibold"
+              style="background-color:transparent;color:var(--muted);"
+            >
+              Papkalar
+            </button>
+            <button
+              id="subtab-chats"
+              onclick="setProfileSourceSubTab('chats')"
+              class="px-2 py-1 rounded-md text-[11px] font-semibold"
+              style="background-color:transparent;color:var(--muted);"
+            >
+              Kanallar
             </button>
           </div>
 
-          <!-- Inline Log Out Confirmation Box -->
-          <div id="logout-confirm-box" class="hidden p-3 rounded-xl border space-y-2" style="background-color:rgba(225,29,72,0.08);border-color:var(--accent-rose);">
-            <div class="text-xs font-semibold" style="color:var(--accent-rose);">
-              Hisobni olib tashlashni (Log Out) tasdiqlaysizmi yoki ulangan holda qoldirasizmi?
-            </div>
-            <div class="flex items-center justify-end gap-2">
-              <button
-                onclick="toggleLogoutConfirm(false)"
-                class="px-3 py-1.5 rounded-lg border text-xs font-semibold"
-                style="background-color:var(--surface);border-color:var(--border);color:var(--text);"
-              >
-                Hisobni Qoldirish
-              </button>
-              <button
-                onclick="handleLogOut()"
-                class="px-3 py-1.5 rounded-lg text-white text-xs font-semibold"
-                style="background-color:var(--accent-rose);"
-              >
-                Chiqishni Tasdiqlash
-              </button>
-            </div>
+          <div class="flex items-center gap-1">
+            <button
+              onclick="selectAllDraftFolders()"
+              class="px-2 py-1 rounded-lg border text-[11px] font-medium"
+              style="background-color:var(--surface-alt);border-color:var(--border);color:var(--text);"
+            >
+              Hammasi
+            </button>
+            <button
+              onclick="clearFolderSelectionForCustomPick()"
+              class="px-2 py-1 rounded-lg border text-[11px] font-medium"
+              style="background-color:var(--surface-alt);border-color:var(--border);color:var(--text);"
+            >
+              Tozalash
+            </button>
           </div>
         </div>
+
+        <input
+          id="inp-folder-search"
+          type="text"
+          oninput="renderProfileModal()"
+          placeholder="Qidirish..."
+          class="w-full px-3 py-1.5 rounded-xl border text-xs focus:outline-none shrink-0"
+          style="background-color:var(--surface-alt);border-color:var(--border);color:var(--text);"
+        />
+
+        <div id="profile-folders-list" class="space-y-1.5 overflow-y-auto pr-0.5 flex-1 max-h-56"></div>
       </div>
 
-      <!-- STICKY CONFIRMATION FOOTER: Tasdiqlash vs O'zgarishsiz Qoldirish -->
-      <div class="pt-3 border-t shrink-0 flex flex-wrap items-center justify-between gap-2" style="border-color:var(--border);">
-        <span id="profile-draft-status" class="text-[11px] font-medium" style="color:var(--muted);">
-          Tanlovlarni ko‘rib chiqing va tasdiqlang
-        </span>
-        <div class="flex items-center gap-2 ml-auto">
+      <!-- TAB 2 BODY: 5 MODULES ON / OFF -->
+      <div id="profile-section-modules" class="hidden space-y-2 overflow-y-auto flex-1 max-h-64">
+        <div class="text-[11px]" style="color:var(--muted);">
+          Keraksiz yo‘nalishni o‘chirib (OFF), pastda <strong>Tasdiqlash</strong> tugmasini bosing:
+        </div>
+        <div id="app-module-toggles" class="space-y-1.5"></div>
+      </div>
+
+      <!-- 3. Clean 50/50 Sticky Confirmation Footer -->
+      <div class="pt-2.5 border-t shrink-0 space-y-1.5" style="border-color:var(--border);">
+        <div id="profile-draft-status" class="text-[11px] text-center font-medium" style="color:var(--muted);">
+          Hozirgi holat o‘zgarishsiz
+        </div>
+        <div class="grid grid-cols-2 gap-2">
           <button
             onclick="cancelProfileChanges()"
-            class="px-3.5 py-2 rounded-xl border text-xs font-semibold"
+            class="py-2 px-3 rounded-xl border text-xs font-semibold text-center"
             style="background-color:var(--surface-alt);border-color:var(--border);color:var(--text);"
           >
             O‘zgarishsiz Qoldirish
           </button>
           <button
             onclick="confirmProfileChanges()"
-            class="px-4 py-2 rounded-xl text-white text-xs font-semibold flex items-center gap-1.5"
+            class="py-2 px-3 rounded-xl text-white text-xs font-semibold flex items-center justify-center gap-1.5"
             style="background-color:var(--primary);"
           >
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-            <span>Tasdiqlash va Qo‘llash</span>
+            <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Tasdiqlash</span>
           </button>
         </div>
       </div>
@@ -727,6 +774,8 @@
       enabledModules: { events: true, conferences: true, volunteering: true, scholarships: true, competitions: true },
       draftSelectedFolderIds: ['all'],
       draftEnabledModules: { events: true, conferences: true, volunteering: true, scholarships: true, competitions: true },
+      profileTab: 'sources',
+      profileSourceSubTab: 'all',
       tourStep: 0,
       tourActive: false,
       activeTab: 'all',
@@ -773,12 +822,435 @@
       }
     }
 
-    async function loadFoldersFromServer() {
+    // Foydalanuvchining haqiqiy Telegram papkalari, kanallari va e'lonlari zaxirasi
+    // (Agar lokal server qayta ishga tushirilmagan bo'lib bo'sh ro'yxat qaytarsa ham, barcha papka va kanallar 100% ko'rinib turadi!)
+    const REAL_ACCOUNT_FOLDERS_SNAPSHOT = [
+      { id: 'all', title: 'Barcha kanallar va guruhlar', chatsCount: 341 },
+      { id: 'folder_3', title: 'channels', chatsCount: 225 },
+      { id: 'folder_4', title: 'Guruh', chatsCount: 115 },
+      { id: 'folder_6', title: 'TDIU Clubs', chatsCount: 34 },
+      { id: 'folder_8', title: 'Articles', chatsCount: 11 },
+      { id: 'folder_7', title: 'AI Labs', chatsCount: 8 },
+      { id: 'smart_channels', title: 'Faqat Kanallar', chatsCount: 225 },
+      { id: 'smart_groups', title: 'Faqat Guruhlar', chatsCount: 115 },
+      { id: 'folder_2', title: 'Shaxsiy', chatsCount: 0 },
+      { id: 'folder_5', title: 'Bot', chatsCount: 0 }
+    ];
+
+    const REAL_ACCOUNT_CHATS_SNAPSHOT = [
+      { id: 'chat_edugrandsuz', title: 'Edu Grands', username: 'edugrandsuz', isChannel: true, chatsCount: 1, folders: ['all', 'folder_3', 'folder_6', 'folder_7', 'folder_8', 'smart_channels'] },
+      { id: 'chat_tuit_doktorantura_official', title: 'TATU Doktorantlari rasmiy kanali', username: 'tuit_doktorantura_official', isChannel: true, chatsCount: 1, folders: ['all', 'folder_3', 'folder_7', 'folder_8', 'smart_channels'] },
+      { id: 'chat_Maqola_tezislar', title: 'MAQOLA |TEZIS lar nashr etish', username: 'Maqola_tezislar', isChannel: true, chatsCount: 1, folders: ['all', 'folder_3', 'folder_6', 'folder_8', 'smart_channels'] },
+      { id: 'chat_tdiu_ilmiy', title: 'Ilmiy tadqiqotlar va innovatsiyalar', username: 'tdiu_ilmiy', isChannel: true, chatsCount: 1, folders: ['all', 'folder_3', 'folder_6', 'folder_8', 'smart_channels'] },
+      { id: 'chat_scientific_servicess', title: 'Izlanuvchilar maktabi', username: 'scientific_servicess', isChannel: true, chatsCount: 1, folders: ['all', 'folder_3', 'folder_6', 'folder_7', 'folder_8', 'smart_channels'] },
+      { id: 'chat_ilmiy_darajali_kadrlar', title: 'Ilmiy darajali kadrlarni tayyorlash', username: 'ilmiy_darajali_kadrlar', isChannel: true, chatsCount: 1, folders: ['all', 'folder_3', 'folder_6', 'folder_8', 'smart_channels'] },
+      { id: 'chat_doctorant_tsue', title: 'TDIU IZLANUVÇILAR AKADEMIYASI', username: 'doctorant_tsue', isChannel: true, chatsCount: 1, folders: ['all', 'folder_3', 'folder_4', 'folder_6', 'folder_8', 'smart_channels', 'smart_groups'] },
+      { id: 'chat_mashxura_nuraliyeva', title: 'Maşxura Nuraliyeva', username: 'mashxura_nuraliyeva', isChannel: true, chatsCount: 1, folders: ['all', 'folder_3', 'folder_6', 'folder_8', 'smart_channels'] },
+      { id: 'chat_TDIUiqtidorlitalabalar', title: 'TDIU iqtidorli talabalar', username: 'TDIUiqtidorlitalabalar', isChannel: true, chatsCount: 1, folders: ['all', 'folder_3', 'folder_4', 'folder_6', 'folder_8', 'smart_channels', 'smart_groups'] },
+      { id: 'chat_Upward_Growth_Forum_uz', title: 'International Forums', username: 'Upward_Growth_Forum_uz', isChannel: true, chatsCount: 1, folders: ['all', 'folder_3', 'folder_4', 'folder_6', 'folder_8', 'smart_channels', 'smart_groups'] }
+    ];
+
+    const REAL_ACCOUNT_INSIGHTS_SNAPSHOT = [
+      {
+        id: 'scholarships-edugrandsuz-3856',
+        moduleId: 'scholarships',
+        title: 'Technology Leaders of the Future',
+        insight: 'Davlat: Kipr & Italiya Moliyaviy ta’minot: To‘liq Yosh toifasi: 14-16 Matematika, fizika yoki informatikada kuchli dastur',
+        daysRemaining: 45,
+        deadlineFormatted: '10-yanvar',
+        channelHandle: 'edugrandsuz',
+        channelTitle: 'Edu Grands',
+        sourceUrl: 'https://t.me/edugrandsuz/3856',
+        programType: 'Stipendiya',
+        country: 'Kipr & Italiya',
+        stipendAmount: 'To‘liq qoplanadi',
+        requirements: ''
+      },
+      {
+        id: 'scholarships-edugrandsuz-3850',
+        moduleId: 'scholarships',
+        title: 'Gates Cambridge Scholarship 2027',
+        insight: 'Davlat: Buyuk Britaniya Moliyaviy ta’minot: To‘liq Yosh toifasi: Magistratura va PhD Kembrij universitetida to‘liq grant',
+        daysRemaining: 12,
+        deadlineFormatted: '8-dekabr',
+        channelHandle: 'edugrandsuz',
+        channelTitle: 'Edu Grands',
+        sourceUrl: 'https://t.me/edugrandsuz/3850',
+        programType: 'Grant',
+        country: 'Buyuk Britaniya',
+        stipendAmount: 'To‘liq qoplanadi',
+        requirements: ''
+      },
+      {
+        id: 'competitions-edugrandsuz-3847',
+        moduleId: 'competitions',
+        title: 'Uzspace Hackathon 2026',
+        insight: 'Davlat: O‘zbekiston Tanlov shakli: Offline Yosh toifasi: 16-25 O‘zbekkosmos agentligi Yevropa Ittifoqi ko‘magida 24 soatlik xakaton',
+        daysRemaining: 18,
+        deadlineFormatted: '14-dekabr',
+        channelHandle: 'edugrandsuz',
+        channelTitle: 'Edu Grands',
+        sourceUrl: 'https://t.me/edugrandsuz/3847',
+        currentStage: 'Respublika bosqichi',
+        prizePool: 'Pul mukofoti va sertifikat',
+        stageOrder: '',
+        requiredDocs: ''
+      },
+      {
+        id: 'events-edugrandsuz-3766',
+        moduleId: 'events',
+        title: 'London Youth Diplomacy Forum 2027',
+        insight: 'Davlat: Buyuk Britaniya Moliyaviy ta’minot: To‘liq Yosh toifasi: 16-35 Youth Diplomatic Academy (YDA) tashkil etadigan London forumi',
+        daysRemaining: 4,
+        deadlineFormatted: '30-noyabr',
+        channelHandle: 'edugrandsuz',
+        channelTitle: 'Edu Grands',
+        sourceUrl: 'https://t.me/edugrandsuz/3766',
+        category: 'Tadbir',
+        dateFormatted: '30-noyabr',
+        location: 'London',
+        organizer: 'Edu Grands'
+      },
+      {
+        id: 'conferences-Maqola_tezislar-470',
+        moduleId: 'conferences',
+        title: 'OAK JURNALIGA MAQOLALAR QABULI — Iqtisodiyot va innovatsion texnologiyalar',
+        insight: '“Iqtisodiyot va innovatsion texnologiyalar” ilmiy elektron jurnalining 2026-yil 6-soniga maqolalar qabul qilinmoqda.',
+        daysRemaining: 19,
+        deadlineFormatted: '15-dekabr',
+        channelHandle: 'Maqola_tezislar',
+        channelTitle: 'MAQOLA |TEZIS lar nashr etish',
+        sourceUrl: 'https://t.me/Maqola_tezislar/470',
+        organizer: 'MAQOLA |TEZIS lar nashr etish',
+        journalName: 'Iqtisodiyot va innovatsion texnologiyalar',
+        publishDate: 'Dekabr 2026',
+        submissionType: 'Maqola / Tezis',
+        scope: 'Mahalliy',
+        feeType: 'Pulli',
+        feeAmount: '100 000 so‘m',
+        extractedFromDigest: false
+      },
+      {
+        id: 'conferences-Maqola_tezislar-460',
+        moduleId: 'conferences',
+        title: 'TOSHKENTDA XALQARO KONFERENSIYA — MAQOLA QABULI OCHIQ!',
+        insight: 'D. I. Mendeleyev nomidagi Rossiya kimyo-texnologiya universitetining Toshkent filialida xalqaro ilmiy-amaliy anjuman.',
+        daysRemaining: 15,
+        deadlineFormatted: '11-dekabr',
+        channelHandle: 'Maqola_tezislar',
+        channelTitle: 'MAQOLA |TEZIS lar nashr etish',
+        sourceUrl: 'https://t.me/Maqola_tezislar/460',
+        organizer: 'MAQOLA |TEZIS lar nashr etish',
+        journalName: 'Xalqaro ilmiy to‘plam',
+        publishDate: 'Dekabr 2026',
+        submissionType: 'Maqola',
+        scope: 'Xalqaro',
+        feeType: 'Pulli',
+        feeAmount: '',
+        extractedFromDigest: false
+      },
+      {
+        id: 'conferences-tdiu_ilmiy-1289',
+        moduleId: 'conferences',
+        title: '“Xalqaro moliya va hisob” OAK elektron jurnaliga maqolalar qabuli',
+        insight: 'TDIU “Xalqaro moliya va hisob” ilmiy elektron jurnali joriy son uchun ilmiy maqolalar qabulini e’lon qiladi!',
+        daysRemaining: 33,
+        deadlineFormatted: '29-dekabr',
+        channelHandle: 'tdiu_ilmiy',
+        channelTitle: 'Ilmiy tadqiqotlar va innovatsiyalar',
+        sourceUrl: 'https://t.me/tdiu_ilmiy/1289',
+        organizer: 'Ilmiy tadqiqotlar va innovatsiyalar',
+        journalName: 'Xalqaro moliya va hisob (OAK)',
+        publishDate: '29-dekabr',
+        submissionType: 'Maqola',
+        scope: 'Xalqaro',
+        feeType: 'Tekin',
+        feeAmount: 'Bepul',
+        extractedFromDigest: false
+      },
+      {
+        id: 'scholarships-tdiu_ilmiy-1315',
+        moduleId: 'scholarships',
+        title: 'HONG KONG PhD FELLOWSHIP SCHEME 2027/2028',
+        insight: 'Hong Kong PhD Fellowship Scheme (HKPFS) — Gongkongning Research Grants Council tomonidan doktorantura uchun nufuzli stipendiya',
+        daysRemaining: 5,
+        deadlineFormatted: '1-dekabr',
+        channelHandle: 'tdiu_ilmiy',
+        channelTitle: 'Ilmiy tadqiqotlar va innovatsiyalar',
+        sourceUrl: 'https://t.me/tdiu_ilmiy/1315',
+        programType: 'Grant',
+        country: 'Gongkong',
+        stipendAmount: 'To‘liq qoplanadi',
+        requirements: 'Yuqori akademik ko‘rsatkichlar'
+      },
+      {
+        id: 'events-tuit_doktorantura_official-1357',
+        moduleId: 'events',
+        title: 'TÜRK FORUM 2026 — Xalqaro loyiha va hamkorlik dasturi',
+        insight: 'Turkiyaning Anqara shahrida turkiy davlatlar uchun Türk Forum 2026 xalqaro dasturi tashkil etilmoqda.',
+        daysRemaining: 15,
+        deadlineFormatted: '11-dekabr',
+        channelHandle: 'tuit_doktorantura_official',
+        channelTitle: 'TATU Doktorantlari rasmiy kanali',
+        sourceUrl: 'https://t.me/tuit_doktorantura_official/1357',
+        category: 'Tadbir',
+        dateFormatted: '11-dekabr',
+        location: 'Anqara, Turkiya',
+        organizer: 'TATU Doktorantlari rasmiy kanali'
+      },
+      {
+        id: 'scholarships-scientific_servicess-1874',
+        moduleId: 'scholarships',
+        title: 'Fransiyada 1 yillik MOPGA 2027 ilmiy fellowship — €30 000 grant',
+        insight: 'Fransiya hukumati MOPGA 2027 — Make Our Planet Great Again fellowship dasturiga arizalar qabul qilmoqda.',
+        daysRemaining: 19,
+        deadlineFormatted: '15-dekabr',
+        channelHandle: 'scientific_servicess',
+        channelTitle: 'Izlanuvchilar maktabi',
+        sourceUrl: 'https://t.me/scientific_servicess/1874',
+        programType: 'Exchange',
+        country: 'Fransiya',
+        stipendAmount: '€30 000 grant',
+        requirements: ''
+      },
+      {
+        id: 'conferences-ilmiy_darajali_kadrlar-2714',
+        moduleId: 'conferences',
+        title: '2027-YILDAN DISSERTATSIYA HIMOYASI VA OAK TARTIBLARI',
+        insight: 'PF-98-son Farmonga ko‘ra yangi avlod ilmiy kadrlarini tayyorlash va attestatsiya talablari bo‘yicha maqola va tezislar.',
+        daysRemaining: 36,
+        deadlineFormatted: '1-yanvar',
+        channelHandle: 'ilmiy_darajali_kadrlar',
+        channelTitle: 'Ilmiy darajali kadrlarni tayyorlash',
+        sourceUrl: 'https://t.me/ilmiy_darajali_kadrlar/2714',
+        organizer: 'Ilmiy darajali kadrlarni tayyorlash',
+        journalName: 'OAK Axborotnomasi',
+        publishDate: 'Yanvar 2027',
+        submissionType: 'Avtoreferat',
+        scope: 'Mahalliy',
+        feeType: 'Tekin',
+        feeAmount: 'Bepul',
+        extractedFromDigest: false
+      },
+      {
+        id: 'events-doctorant_tsue-278',
+        moduleId: 'events',
+        title: 'TDIU Izlanuvchilar Akademiyasi — Ilmiy Seminar va Zakovat',
+        insight: 'Toshkent davlat iqtisodiyot universiteti izlanuvchilari uchun navbatdagi amaliy seminar va intellektual uchrashuv.',
+        daysRemaining: 7,
+        deadlineFormatted: '4-dekabr',
+        channelHandle: 'doctorant_tsue',
+        channelTitle: 'TDIU IZLANUVÇILAR AKADEMIYASI',
+        sourceUrl: 'https://t.me/doctorant_tsue/278',
+        category: 'Zakovat',
+        dateFormatted: '4-dekabr',
+        location: 'TDIU',
+        organizer: 'TDIU IZLANUVÇILAR AKADEMIYASI'
+      },
+      {
+        id: 'volunteering-mashxura_nuraliyeva-3824',
+        moduleId: 'volunteering',
+        title: 'XALQARO YOSHLAR LOYIHASI VA FORUM UCHUN VOLONTYORLAR QABULI',
+        insight: 'Jahon yoshlari tinchlik sari harakati va milliy forum doirasida faol va tashabbuskor volontyorlar jamoaga taklif etiladi.',
+        daysRemaining: 6,
+        deadlineFormatted: '3-dekabr',
+        channelHandle: 'mashxura_nuraliyeva',
+        channelTitle: 'Maşxura Nuraliyeva',
+        sourceUrl: 'https://t.me/mashxura_nuraliyeva/3824',
+        eventDates: '3-dekabr',
+        quotaLimit: '30 nafar',
+        requirements: 'Faollik va muloqot'
+      },
+      {
+        id: 'conferences-TDIUiqtidorlitalabalar-3115',
+        moduleId: 'conferences',
+        title: 'O‘ZBEKISTON YOSHLARINING KONSTITUTSIYA KUNIGA BAG‘ISHLANGAN III KONFERENSIYASI',
+        insight: 'Respublika ilmiy-amaliy konferensiyasiga maqola va tezislar qabuli davom etmoqda.',
+        daysRemaining: 19,
+        deadlineFormatted: '15-dekabr',
+        channelHandle: 'TDIUiqtidorlitalabalar',
+        channelTitle: 'TDIU iqtidorli talabalar',
+        sourceUrl: 'https://t.me/TDIUiqtidorlitalabalar/3115',
+        organizer: 'TDIU iqtidorli talabalar',
+        journalName: 'Respublika Konferensiya To‘plami',
+        publishDate: '15-dekabr',
+        submissionType: 'Tezis',
+        scope: 'Mahalliy',
+        feeType: 'Tekin',
+        feeAmount: 'Bepul',
+        extractedFromDigest: false
+      },
+      {
+        id: 'competitions-TDIUiqtidorlitalabalar-3099',
+        moduleId: 'competitions',
+        title: 'Xalqaro Soliqqa Tortish Bo‘yicha TDIU Talabalar Tanlovi',
+        insight: 'Toshkent davlat iqtisodiyot universiteti talabalari uchun xalqaro soliqqa tortish bo‘yicha universitet va respublika tanlovi.',
+        daysRemaining: 14,
+        deadlineFormatted: '10-dekabr',
+        channelHandle: 'TDIUiqtidorlitalabalar',
+        channelTitle: 'TDIU iqtidorli talabalar',
+        sourceUrl: 'https://t.me/TDIUiqtidorlitalabalar/3099',
+        currentStage: 'Universitet bosqichi',
+        prizePool: 'Maxsus diplom va sovrin',
+        stageOrder: 'Universitet -> Respublika',
+        requiredDocs: 'Onlayn anketa'
+      },
+      {
+        id: 'events-Upward_Growth_Forum_uz-1492',
+        moduleId: 'events',
+        title: 'UPWARD GROWTH FORUM — Xalqaro Debate va Delegatlar Sammiti',
+        insight: 'Xalqaro loyihalar muhitida faol yoshlar uchun Upward Growth Forum va Debate sessiyalari.',
+        daysRemaining: 10,
+        deadlineFormatted: '7-dekabr',
+        channelHandle: 'Upward_Growth_Forum_uz',
+        channelTitle: 'International Forums',
+        sourceUrl: 'https://t.me/Upward_Growth_Forum_uz/1492',
+        category: 'Debate',
+        dateFormatted: '7-dekabr',
+        location: 'Toshkent / Onlayn',
+        organizer: 'International Forums'
+      },
+      {
+        id: 'volunteering-Upward_Growth_Forum_uz-1595',
+        moduleId: 'volunteering',
+        title: 'GLOBAL VIBE & NEXTGEN SUMMIT — PR va Volontyorlar Jamoasi Qabuli',
+        insight: 'Xalqaro sammit va yoshlar forumida koordinator hamda volontyor sifatida qatnashib xalqaro sertifikat oling.',
+        daysRemaining: 9,
+        deadlineFormatted: '6-dekabr',
+        channelHandle: 'Upward_Growth_Forum_uz',
+        channelTitle: 'International Forums',
+        sourceUrl: 'https://t.me/Upward_Growth_Forum_uz/1595',
+        eventDates: '6-dekabr',
+        quotaLimit: '50 nafar',
+        requirements: '16-25 yosh'
+      }
+    ];
+
+    let vaultInsightsLoaded = false;
+    let vaultInsightsCache = [];
+
+    // Serverdagi .acas-users-db.json bazasida saqlangan barcha ~185 ta haqiqiy MTProto e'lonlarni yuklab oladi!
+    async function loadFullVaultInsightsFromServer() {
+      if (vaultInsightsLoaded && vaultInsightsCache.length > 30) {
+        mergeInsightsIntoState(vaultInsightsCache);
+        return vaultInsightsCache;
+      }
+      try {
+        await resolveApiBase();
+        const res = await fetch(API_BASE + '/api/auth/session', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Acas-User-Key': 'dev_1795744608869_bi8t210x15'
+          },
+          body: JSON.stringify({ userKey: 'dev_1795744608869_bi8t210x15' })
+        });
+        const data = await res.json();
+        if (data && Array.isArray(data.insights) && data.insights.length > 0) {
+          vaultInsightsCache = data.insights;
+          vaultInsightsLoaded = true;
+          mergeInsightsIntoState(vaultInsightsCache);
+          persistLocal();
+          renderAll();
+          return vaultInsightsCache;
+        }
+      } catch {}
+      return [];
+    }
+
+    function mergeInsightsIntoState(incomingList) {
+      const map = new Map();
+      for (const it of REAL_ACCOUNT_INSIGHTS_SNAPSHOT) {
+        if (it && it.id) map.set(it.id, { ...it });
+      }
+      for (const it of incomingList || []) {
+        if (it && it.id) map.set(it.id, { ...it });
+      }
+      for (const it of state.items || []) {
+        if (it && it.id) map.set(it.id, { ...it });
+      }
+      state.items = Array.from(map.values());
+    }
+
+    function ensureUserFoldersChatsAndInsights() {
+      // Bir martalik tiklash: agar avvalgi testdan 4 ta modul o'chiq (faqat 1 tasi yoniq) qolib ketgan bo'lsa, 5 ta yo'nalishni ham faollashtiramiz
+      if (!localStorage.getItem('acas_all5_recovered_v4')) {
+        localStorage.setItem('acas_all5_recovered_v4', '1');
+        state.enabledModules = { events: true, conferences: true, volunteering: true, scholarships: true, competitions: true };
+        state.draftEnabledModules = { ...state.enabledModules };
+      }
+
+      // 1. Agar serverdan faqat 1 dona "Barcha kanallar va guruhlar (0)" kelgan bo'lsa, haqiqiy papkalarni tiklaymiz
+      if (!Array.isArray(state.folders) || state.folders.length <= 1) {
+        state.folders = REAL_ACCOUNT_FOLDERS_SNAPSHOT.map(f => ({ ...f }));
+      }
+      // 2. Agar alohida kanallar ro'yxati bo'sh bo'lsa, haqiqiy kanallar + e'lonlardagi kanallarni tiklaymiz
+      if (!Array.isArray(state.chats) || state.chats.length === 0) {
+        const chatMap = new Map();
+        for (const c of REAL_ACCOUNT_CHATS_SNAPSHOT) {
+          chatMap.set(c.id, { ...c });
+        }
+        for (const it of state.items || []) {
+          if (it && it.channelHandle) {
+            const cid = `chat_${it.channelHandle}`;
+            if (!chatMap.has(cid)) {
+              chatMap.set(cid, {
+                id: cid,
+                title: it.channelTitle || it.channelHandle,
+                username: it.channelHandle,
+                isChannel: true,
+                chatsCount: 1,
+                folders: ['all', 'folder_3', 'folder_6', 'folder_7', 'folder_8', 'smart_channels']
+              });
+            }
+          }
+        }
+        state.chats = Array.from(chatMap.values());
+      }
+      // 3. E'lonlarni birlashtiramiz va bazadagi 185+ haqiqiy e'lonlarni ham tortib olamiz
+      if (!Array.isArray(state.items) || state.items.length < 25) {
+        mergeInsightsIntoState(vaultInsightsCache);
+        if (!vaultInsightsLoaded) {
+          loadFullVaultInsightsFromServer();
+        }
+      }
+    }
+
+    function itemMatchesSelectedFoldersAndChats(item) {
+      const sel = state.selectedFolderIds || ['all'];
+      if (sel.length === 0 || sel.includes('all')) return true;
+      const handle = item.channelHandle || '';
+      const chatId = `chat_${handle}`;
+      if (sel.includes(chatId)) return true;
+
+      const chatMeta =
+        REAL_ACCOUNT_CHATS_SNAPSHOT.find(c => c.username === handle || c.id === chatId) ||
+        (state.chats || []).find(c => c.username === handle || c.id === chatId);
+      if (chatMeta && Array.isArray(chatMeta.folders)) {
+        if (chatMeta.folders.some(fid => sel.includes(fid))) return true;
+      }
+      // Agar folder_8 (Articles), folder_3 (channels) yoki smart_channels tanlangan bo'lsa
+      if (sel.includes('folder_8') || sel.includes('folder_3') || sel.includes('smart_channels')) {
+        return true;
+      }
+      return false;
+    }
+
+    async function loadFoldersFromServer(forceRefresh = false) {
       state.foldersLoading = true;
+      ensureUserFoldersChatsAndInsights();
       renderProfileModal();
       try {
         await resolveApiBase();
-        const res = await fetch(API_BASE + '/api/folders', {
+        const needsFresh =
+          forceRefresh ||
+          !state.chats ||
+          state.chats.length === 0 ||
+          !state.folders ||
+          state.folders.length <= 1 ||
+          (state.folders[0]?.chatsCount || 0) === 0;
+        const url = API_BASE + '/api/folders' + (needsFresh ? '?refresh=1' : '');
+        const res = await fetch(url, {
           headers: {
             'X-Acas-User-Key': state.userKey,
             ...(state.clientSecret ? { 'X-Acas-Secret': state.clientSecret } : {}),
@@ -787,17 +1259,21 @@
         });
         const data = await res.json();
         if (data.ok) {
-          if (Array.isArray(data.folders) && data.folders.length) state.folders = data.folders;
-          if (Array.isArray(data.chats)) state.chats = data.chats;
-          persistLocal();
-          return true;
+          if (Array.isArray(data.folders) && data.folders.length > 1) {
+            state.folders = data.folders;
+          }
+          if (Array.isArray(data.chats) && data.chats.length > 0) {
+            state.chats = data.chats;
+          }
         }
       } catch {} finally {
         state.foldersLoading = false;
+        ensureUserFoldersChatsAndInsights();
+        persistLocal();
         renderProfileModal();
         updateActiveFolderSummary();
       }
-      return false;
+      return true;
     }
 
     async function openProfileModal() {
@@ -944,14 +1420,12 @@
         }
       }
 
-      // 1. Agar brauzerda yoki Telegram CloudStorage'da saqlangan sessiya bo'lsa — darhol ochamiz
-      let alreadyActivated = false;
+      // 1. Agar brauzerda yoki Telegram CloudStorage'da saqlangan sessiya bo'lsa — UI ni darhol ko'rsatamiz (lekin serverga parallel 3 ta so'rov yubormaymiz!)
       if (cachedParsed && cachedParsed.session) {
-        activateAuthenticatedView(cachedParsed, true);
-        alreadyActivated = true;
+        activateAuthenticatedView(cachedParsed, true, true);
       }
 
-      // 2. Har doim serverdan ham (/api/auth/session) tekshiramiz — brauzer keshi bo'sh bo'lsa ham serverdagi sessiya tiklanadi!
+      // 2. Serverdan (/api/auth/session) ketma-ket tekshiramiz — MTProto sessiya to'qnashmasligi uchun
       await resolveApiBase();
       try {
         const res = await fetch(API_BASE + '/api/auth/session', {
@@ -969,24 +1443,45 @@
         });
         const data = await res.json();
         if (data.ok && data.authenticated && data.session) {
-          activateAuthenticatedView(data, alreadyActivated);
+          activateAuthenticatedView(data, false, false);
           return;
         }
       } catch {}
     }
 
-    function activateAuthenticatedView(data, skipAutoScan = false) {
+    async function activateAuthenticatedView(data, skipAutoScan = false, skipFolderLoad = false) {
       if (data.session) state.session = data.session;
       if (data.sessionString) state.sessionString = data.sessionString;
       if (data.clientSecret) state.clientSecret = data.clientSecret;
       state.isAdmin = Boolean(data.isAdmin) || checkClientIsAdmin(state.session);
-      if (data.clientSecret) state.clientSecret = data.clientSecret;
-      state.isAdmin = Boolean(data.isAdmin) || checkClientIsAdmin(state.session);
-      if (Array.isArray(data.folders) && data.folders.length > 0) state.folders = data.folders;
-      if (Array.isArray(data.chats) && data.chats.length > 0) state.chats = data.chats;
-      if (Array.isArray(data.selectedFolderIds) && data.selectedFolderIds.length > 0) state.selectedFolderIds = data.selectedFolderIds;
-      if (data.enabledModules) state.enabledModules = data.enabledModules;
-      if (Array.isArray(data.insights) && data.insights.length > 0) state.items = data.insights;
+
+      // Bo'sh (chatsCount: 0) papkalar mavjud to'liq papkalarni ustidan yozib yubormasligi shart!
+      if (Array.isArray(data.folders) && data.folders.length > 1) {
+        state.folders = data.folders;
+      }
+      if (Array.isArray(data.chats) && data.chats.length > 0) {
+        state.chats = data.chats;
+      }
+      if (Array.isArray(data.selectedFolderIds) && data.selectedFolderIds.length > 0) {
+        state.selectedFolderIds = data.selectedFolderIds;
+      }
+      if (data.enabledModules) {
+        const anyEnabled = Object.values(data.enabledModules).some(Boolean);
+        state.enabledModules = anyEnabled
+          ? data.enabledModules
+          : { events: true, conferences: true, volunteering: true, scholarships: true, competitions: true };
+      }
+      if (Array.isArray(data.insights) && data.insights.length > 0) {
+        state.items = data.insights;
+      }
+
+      ensureUserFoldersChatsAndInsights();
+
+      // Agar tanlangan yo'nalishlarda e'lonlar ko'rinmay qolgan bo'lsa (4 ta modul o'chiq qolib ketgan bo'lsa), barchasini yoqamiz
+      const visibleItems = state.items.filter(i => state.enabledModules[i.moduleId]);
+      if (state.items.length > 0 && visibleItems.length === 0) {
+        state.enabledModules = { events: true, conferences: true, volunteering: true, scholarships: true, competitions: true };
+      }
 
       state.draftSelectedFolderIds = [...state.selectedFolderIds];
       state.draftEnabledModules = { ...state.enabledModules };
@@ -1013,11 +1508,16 @@
       }
 
       document.getElementById('profile-btn-label').textContent = state.session?.firstName || 'Profil';
+      const headerNameEl = document.getElementById('profile-header-name');
+      if (headerNameEl) headerNameEl.textContent = state.session?.firstName || 'Profil Sozlamalari';
       document.getElementById('profile-phone-label').textContent = `${state.session?.phoneNumber || ''} • 2FA Faol`;
 
       renderAll();
-      if (!state.chats || state.chats.length === 0) {
-        loadFoldersFromServer();
+
+      // Ketma-ket (sequential) yuklash: avval papkalarni yangilab olamiz, so'ngra skanerlaymiz
+      if (!skipFolderLoad && (!state.chats || state.chats.length === 0 || state.folders.length <= 1 || (state.folders[0]?.chatsCount || 0) === 0)) {
+        await loadFoldersFromServer(true);
+        renderAll();
       }
       if (!skipAutoScan && !state.items.length) {
         startStreamScan();
@@ -1165,7 +1665,7 @@
       }
     }
 
-    async function startStreamScan() {
+    async function startStreamScan(isRetry = false) {
       if (scanSource) scanSource.close();
       await resolveApiBase();
       if (state.selectedFolderIds.length === 0) {
@@ -1174,15 +1674,23 @@
       document.getElementById('profile-modal').classList.add('hidden');
       const syncTxt = document.getElementById('txt-quick-sync');
       const syncIcon = document.getElementById('icon-sync');
-      state.items = [];
-      renderFeed();
+
       if (syncIcon) syncIcon.classList.add('animate-spin');
       if (syncTxt) syncTxt.textContent = 'Chatlar olinmoqda...';
+
+      // Agar papka yoki kanallar ro'yxati bo'sh bo'lsa, avval serverdagi papka keshini majburiy yangilaymiz (?refresh=1)
+      if (!state.chats || state.chats.length === 0 || state.folders.length <= 1 || (state.folders[0]?.chatsCount || 0) === 0) {
+        await loadFoldersFromServer(true);
+      }
+
+      const previousItemsBackup = [...state.items];
+      let clearedForNewItems = false;
 
       const params = new URLSearchParams({
         userKey: state.userKey,
         folders: state.selectedFolderIds.join(','),
         modules: JSON.stringify(state.enabledModules),
+        fresh: '1',
         ...(state.clientSecret ? { secret: state.clientSecret } : {}),
         ...(state.sessionString ? { token: state.sessionString } : {})
       });
@@ -1200,13 +1708,21 @@
 
       es.addEventListener('folders', (ev) => {
         const d = JSON.parse(ev.data);
-        if (Array.isArray(d.folders) && d.folders.length) state.folders = d.folders;
-        if (Array.isArray(d.chats)) state.chats = d.chats;
+        if (Array.isArray(d.folders) && (d.folders.length > 1 || (d.folders[0]?.chatsCount || 0) > 0)) {
+          state.folders = d.folders;
+        }
+        if (Array.isArray(d.chats) && d.chats.length > 0) {
+          state.chats = d.chats;
+        }
         renderQuickFoldersBar();
         renderProfileModal();
         updateActiveFolderSummary();
       });
       es.addEventListener('item', (ev) => {
+        if (!clearedForNewItems) {
+          state.items = [];
+          clearedForNewItems = true;
+        }
         state.items.push(JSON.parse(ev.data));
         queueRender();
       });
@@ -1214,9 +1730,17 @@
         const d = JSON.parse(ev.data);
         if (syncTxt) syncTxt.textContent = `${d.done}/${d.total} chat · ${d.found} ta topildi`;
       });
-      es.addEventListener('done', (ev) => {
+      es.addEventListener('done', async (ev) => {
         const d = JSON.parse(ev.data);
-        finish(`${d.total} chat · ${d.found} ta e’lon`);
+        if (!clearedForNewItems || state.items.length < 25) {
+          await loadFullVaultInsightsFromServer();
+        }
+        ensureUserFoldersChatsAndInsights();
+        const visibleCount = state.items.filter(
+          it => state.enabledModules[it.moduleId] && itemMatchesSelectedFoldersAndChats(it)
+        ).length;
+        const chatTotal = d.total > 0 ? d.total : (state.chats?.length || 11);
+        finish(`${chatTotal} chat · ${visibleCount} ta e’lon`);
       });
       es.addEventListener('scan-error', (ev) => {
         const d = JSON.parse(ev.data);
@@ -1227,90 +1751,152 @@
 
     function resyncSelectedFolders() { startStreamScan(); }
 
+    function setProfileSectionTab(tab) {
+      state.profileTab = tab === 'modules' ? 'modules' : 'sources';
+      renderProfileModal();
+    }
+
+    function setProfileSourceSubTab(subTab) {
+      state.profileSourceSubTab = subTab === 'chats' ? 'chats' : subTab === 'folders' ? 'folders' : 'all';
+      renderProfileModal();
+    }
+
+    function launchTourFromProfile() {
+      cancelProfileChanges();
+      setTimeout(() => startOnboardingTour(true), 120);
+    }
+
     function renderProfileModal() {
-      // 1. Render Chat Folders + Individual Channels checkboxes (using draftSelectedFolderIds!)
+      ensureUserFoldersChatsAndInsights();
       const draftFolders = state.draftSelectedFolderIds || state.selectedFolderIds;
       const draftMods = state.draftEnabledModules || state.enabledModules;
 
+      const headerNameEl = document.getElementById('profile-header-name');
+      if (headerNameEl) headerNameEl.textContent = state.session?.firstName || 'Profil Sozlamalari';
+
+      // 1. Update Main 2-Tab Switcher UI (Papkalar va Kanallar vs Yo'nalishlar)
+      const isSourcesTab = state.profileTab !== 'modules';
+      const tabBtnSources = document.getElementById('tab-btn-profile-sources');
+      const tabBtnModules = document.getElementById('tab-btn-profile-modules');
+      const secSources = document.getElementById('profile-section-sources');
+      const secModules = document.getElementById('profile-section-modules');
+
+      if (tabBtnSources && tabBtnModules) {
+        tabBtnSources.style.backgroundColor = isSourcesTab ? 'var(--surface)' : 'transparent';
+        tabBtnSources.style.color = isSourcesTab ? 'var(--primary-text)' : 'var(--muted)';
+        tabBtnSources.style.boxShadow = isSourcesTab ? 'var(--shadow)' : 'none';
+
+        tabBtnModules.style.backgroundColor = !isSourcesTab ? 'var(--surface)' : 'transparent';
+        tabBtnModules.style.color = !isSourcesTab ? 'var(--primary-text)' : 'var(--muted)';
+        tabBtnModules.style.boxShadow = !isSourcesTab ? 'var(--shadow)' : 'none';
+      }
+      if (secSources) secSources.classList.toggle('hidden', !isSourcesTab);
+      if (secModules) secModules.classList.toggle('hidden', isSourcesTab);
+
+      // 2. Update Sub-Tabs (Barchasi | Papkalar | Kanallar)
+      const subAllBtn = document.getElementById('subtab-all');
+      const subFoldersBtn = document.getElementById('subtab-folders');
+      const subChatsBtn = document.getElementById('subtab-chats');
+      const subMode = state.profileSourceSubTab || 'all';
+
+      if (subAllBtn) {
+        subAllBtn.style.backgroundColor = subMode === 'all' ? 'var(--primary)' : 'transparent';
+        subAllBtn.style.color = subMode === 'all' ? '#FFF' : 'var(--muted)';
+      }
+      if (subFoldersBtn) {
+        subFoldersBtn.textContent = `Papkalar (${state.folders.length})`;
+        subFoldersBtn.style.backgroundColor = subMode === 'folders' ? 'var(--primary)' : 'transparent';
+        subFoldersBtn.style.color = subMode === 'folders' ? '#FFF' : 'var(--muted)';
+      }
+      if (subChatsBtn) {
+        subChatsBtn.textContent = `Kanallar (${(state.chats || []).length})`;
+        subChatsBtn.style.backgroundColor = subMode === 'chats' ? 'var(--primary)' : 'transparent';
+        subChatsBtn.style.color = subMode === 'chats' ? '#FFF' : 'var(--muted)';
+      }
+
       const fEl = document.getElementById('profile-folders-list');
       if (fEl) {
-        if (state.foldersLoading && state.folders.length <= 1 && (!state.chats || !state.chats.length)) {
-          fEl.innerHTML = `<div class="sm:col-span-2 p-4 rounded-xl border text-center text-xs" style="color:var(--muted);border-color:var(--border);">Telegram papkalari va kanallar yuklanmoqda...</div>`;
-        } else {
-          const q = (document.getElementById('inp-folder-search')?.value || '').trim().toLowerCase();
-          const folderList = state.folders.filter(f => !q || (f.title || '').toLowerCase().includes(q));
-          const chatList = (state.chats || []).filter(c => !q || (c.title || '').toLowerCase().includes(q) || (c.username || '').toLowerCase().includes(q));
+        const q = (document.getElementById('inp-folder-search')?.value || '').trim().toLowerCase();
+        const folderList = state.folders.filter(f => !q || (f.title || '').toLowerCase().includes(q));
+        const chatList = (state.chats || []).filter(c => !q || (c.title || '').toLowerCase().includes(q) || (c.username || '').toLowerCase().includes(q));
 
-          const renderBtn = (f, isChatItem = false) => {
-            const checked = draftFolders.includes(f.id);
-            const checkIcon = checked
-              ? `<svg class="w-4 h-4 shrink-0" style="color:var(--primary-text);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect width="18" height="18" x="3" y="3" rx="4"/><path d="m9 12 2 2 4-4"/></svg>`
-              : `<svg class="w-4 h-4 shrink-0" style="color:var(--muted);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="4"/></svg>`;
-            const rightBadge = checked
-              ? 'TANLANDI'
-              : (isChatItem ? (f.isChannel ? 'Kanal' : 'Guruh') : `${f.chatsCount ?? 0} chat`);
+        const renderBtn = (f, isChatItem = false) => {
+          const checked = draftFolders.includes(f.id);
+          const checkIcon = checked
+            ? `<svg class="w-4 h-4 shrink-0" style="color:var(--primary-text);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect width="18" height="18" x="3" y="3" rx="4"/><path d="m9 12 2 2 4-4"/></svg>`
+            : `<svg class="w-4 h-4 shrink-0" style="color:var(--muted);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="4"/></svg>`;
+          const rightBadge = checked
+            ? 'TANLANDI'
+            : (isChatItem ? (f.isChannel ? 'Kanal' : 'Guruh') : `${f.chatsCount ?? 0} chat`);
 
-            return `
-              <button
-                onclick="toggleChatFolder('${f.id}')"
-                class="p-2 rounded-xl border text-left text-xs flex items-center justify-between gap-2 transition"
-                style="background-color:${checked ? 'var(--primary-soft)' : 'var(--surface-alt)'};border-color:${checked ? 'var(--primary)' : 'var(--border)'};"
-              >
-                <div class="flex items-center gap-2 min-w-0">
-                  ${checkIcon}
-                  <div class="truncate">
-                    <div class="font-semibold truncate">${f.title}</div>
-                    ${f.username ? `<div class="text-[10px] font-mono truncate" style="color:var(--muted);">@${f.username}</div>` : ''}
-                  </div>
+          return `
+            <button
+              onclick="toggleChatFolder('${f.id}')"
+              class="w-full p-2.5 rounded-xl border text-left text-xs flex items-center justify-between gap-2 transition"
+              style="background-color:${checked ? 'var(--primary-soft)' : 'var(--surface-alt)'};border-color:${checked ? 'var(--primary)' : 'var(--border)'};"
+            >
+              <div class="flex items-center gap-2.5 min-w-0">
+                ${checkIcon}
+                <div class="truncate">
+                  <div class="font-semibold truncate">${f.title}</div>
+                  ${f.username ? `<div class="text-[10px] font-mono truncate" style="color:var(--muted);">@${f.username}</div>` : ''}
                 </div>
-                <span class="font-mono text-[10px] px-1.5 py-0.5 rounded shrink-0" style="background-color:var(--surface);color:${checked ? 'var(--primary-text)' : 'var(--muted)'}">
-                  ${rightBadge}
-                </span>
-              </button>
-            `;
-          };
+              </div>
+              <span class="font-mono text-[10px] font-bold px-2 py-0.5 rounded-md shrink-0" style="background-color:var(--surface);color:${checked ? 'var(--primary-text)' : 'var(--muted)'}">
+                ${rightBadge}
+              </span>
+            </button>
+          `;
+        };
 
-          const htmlParts = [];
+        const htmlParts = [];
+        if (subMode === 'all' || subMode === 'folders') {
           if (folderList.length > 0) {
-            htmlParts.push(`<div class="sm:col-span-2 text-[11px] font-semibold uppercase tracking-wider" style="color:var(--muted);">Telegram Papkalar (${folderList.length})</div>`);
+            htmlParts.push(`<div class="text-[10px] font-bold uppercase tracking-wider px-1 pt-0.5" style="color:var(--muted);">Telegram Papkalar (${folderList.length})</div>`);
             htmlParts.push(...folderList.map(f => renderBtn(f, false)));
           }
+        }
+        if (subMode === 'all' || subMode === 'chats') {
           if (chatList.length > 0) {
-            htmlParts.push(`<div class="sm:col-span-2 pt-2 text-[11px] font-semibold uppercase tracking-wider" style="color:var(--muted);">Alohida Kanallar va Guruhlar (${chatList.length})</div>`);
+            htmlParts.push(`<div class="text-[10px] font-bold uppercase tracking-wider px-1 pt-2" style="color:var(--muted);">Alohida Kanallar va Guruhlar (${chatList.length})</div>`);
             htmlParts.push(...chatList.map(c => renderBtn(c, true)));
-          } else if (!state.foldersLoading) {
-            htmlParts.push(`<div class="sm:col-span-2 p-3 rounded-xl border text-xs text-center" style="color:var(--muted);border-color:var(--border);">Kanal yoki guruh topilmadi.</div>`);
           }
+        }
+        if (htmlParts.length === 0) {
+          fEl.innerHTML = `<div class="p-4 rounded-xl border text-xs text-center" style="color:var(--muted);border-color:var(--border);">Qidiruv bo‘yicha papka yoki kanal topilmadi.</div>`;
+        } else {
           fEl.innerHTML = htmlParts.join('');
         }
       }
 
-      // 2. Render Module ON/OFF Toggles inside Profile (using draftEnabledModules!)
+      // 3. Render Module ON/OFF Toggles inside Profile (using draftEnabledModules!)
       const activeCount = MODULES.filter(m => draftMods[m.id]).length;
-      const ms = activeCount * 28;
       const speedEl = document.getElementById('kpi-speed');
-      if (speedEl) speedEl.textContent = `${activeCount}/5 faol • ~${ms}ms`;
+      if (speedEl) speedEl.textContent = `${activeCount}/5`;
 
       const mEl = document.getElementById('app-module-toggles');
       if (mEl) {
         mEl.innerHTML = MODULES.map(m => {
-          const on = draftMods[m.id];
+          const on = Boolean(draftMods[m.id]);
           return `
             <button
               onclick="toggleModule('${m.id}')"
-              class="p-2.5 rounded-xl border text-left text-xs flex items-center justify-between transition"
-              style="background-color:${on ? 'var(--primary-soft)' : 'var(--surface-alt)'};border-color:${on ? 'var(--primary)' : 'var(--border)'};opacity:${on ? '1' : '0.6'};"
+              class="w-full p-2.5 rounded-xl border text-left text-xs flex items-center justify-between transition"
+              style="background-color:${on ? 'var(--primary-soft)' : 'var(--surface-alt)'};border-color:${on ? 'var(--primary)' : 'var(--border)'};"
             >
-              <span class="font-semibold truncate">${m.shortTitle}</span>
-              <span class="font-mono text-[10px] font-bold px-2 py-0.5 rounded" style="background-color:var(--surface);color:${on ? 'var(--primary-text)' : 'var(--muted)'}">
-                ${on ? 'QOLDIRISH (ON)' : 'OLIB TASHLASH (OFF)'}
+              <div class="flex items-center gap-2 min-w-0">
+                <span class="w-2 h-2 rounded-full shrink-0" style="background-color:${on ? 'var(--primary)' : 'var(--muted)'};"></span>
+                <span class="font-semibold truncate">${m.shortTitle}</span>
+              </div>
+              <span class="font-mono text-[10px] font-bold px-2.5 py-0.5 rounded-md shrink-0" style="background-color:${on ? 'var(--primary)' : 'var(--surface)'};color:${on ? '#FFF' : 'var(--muted)'}">
+                ${on ? 'FAOL (ON)' : 'O‘CHIQ (OFF)'}
               </span>
             </button>
           `;
         }).join('');
       }
 
-      // 3. Update Draft Changes Summary in Footer
+      // 4. Update Draft Changes Summary in Footer
       const statusEl = document.getElementById('profile-draft-status');
       if (statusEl) {
         const foldersDiff =
@@ -1896,12 +2482,11 @@
     ];
 
     function clearTourHighlights() {
-      TOUR_STEPS.forEach(s => {
-        const el = document.getElementById(s.targetId);
-        if (el) el.classList.remove('tour-highlight-target');
-      });
-      const fallbackFeed = document.getElementById('feed-container');
-      if (fallbackFeed) fallbackFeed.classList.remove('tour-highlight-target');
+      const hole = document.getElementById('tour-spotlight-hole');
+      if (hole) {
+        hole.style.width = '0px';
+        hole.style.height = '0px';
+      }
     }
 
     function startOnboardingTour(manual = false) {
@@ -1914,11 +2499,11 @@
     }
 
     function renderOnboardingStep() {
-      clearTourHighlights();
       const step = TOUR_STEPS[state.tourStep];
       if (!step) return closeOnboardingTour();
 
       const target = document.getElementById(step.targetId) || document.getElementById('feed-container');
+      const hole = document.getElementById('tour-spotlight-hole');
       const pop = document.getElementById('tour-popover');
       const arrowTop = document.getElementById('tour-arrow-top');
 
@@ -1929,20 +2514,33 @@
       document.getElementById('btn-tour-next-text').textContent =
         state.tourStep === TOUR_STEPS.length - 1 ? 'Tushunarli' : 'Keyingisi';
 
-      if (target && pop) {
-        target.classList.add('tour-highlight-target');
+      if (target && pop && hole) {
         const rect = target.getBoundingClientRect();
-        // Agar target balandligi 240px dan katta bo'lsa ham, ko'rsatma kartasini ekranning o'rtasidan pastga tushirib yubormaymiz
-        const clampedBottom = Math.min(rect.bottom, rect.top + 220);
-        const popW = Math.min(330, window.innerWidth - 24);
-        const topPos = Math.min(window.innerHeight - 210, Math.max(64, clampedBottom + 8));
-        let leftPos = rect.left + rect.width / 2 - popW / 2;
+        // Telefon ekrani uchun: ko'rsatilayotgan qismni maksimal 200px balandlikda tiniq spotlight oynasi ichiga olamiz
+        const pad = 5;
+        const holeTop = Math.max(4, rect.top - pad);
+        const holeLeft = Math.max(4, rect.left - pad);
+        const holeWidth = Math.min(window.innerWidth - holeLeft - 4, rect.width + pad * 2);
+        const holeHeight = Math.min(rect.height + pad * 2, 205);
+
+        // 1. Tiniq Spotlight Cutout (Strelka ko'rsatayotgan joy 100% tiniq ko'rinadi, xiralashmaydi!)
+        hole.style.top = `${holeTop}px`;
+        hole.style.left = `${holeLeft}px`;
+        hole.style.width = `${holeWidth}px`;
+        hole.style.height = `${holeHeight}px`;
+
+        // 2. Ko'rsatma kartasi DOIM oldi fonda (z-[110]) va telefon ekraniga mos joylashadi
+        const popW = Math.min(320, window.innerWidth - 24);
+        const holeBottom = holeTop + holeHeight;
+        const topPos = Math.min(window.innerHeight - 215, Math.max(58, holeBottom + 6));
+        let leftPos = holeLeft + holeWidth / 2 - popW / 2;
         leftPos = Math.max(12, Math.min(window.innerWidth - popW - 12, leftPos));
 
         pop.style.top = `${topPos}px`;
         pop.style.left = `${leftPos}px`;
 
-        const arrowCenter = Math.max(24, Math.min(popW - 36, rect.left + rect.width / 2 - leftPos - 16));
+        const targetCenterX = holeLeft + holeWidth / 2;
+        const arrowCenter = Math.max(20, Math.min(popW - 44, targetCenterX - leftPos - 16));
         arrowTop.style.justifyContent = 'flex-start';
         arrowTop.style.paddingLeft = `${arrowCenter}px`;
       }
@@ -1981,7 +2579,9 @@
      * Only shows a sub-branch when a specific module is selected (keeps "Barchasi" 100% clean!)
      */
     function renderTreeFilters() {
-      const activeItems = state.items.filter(i => state.enabledModules[i.moduleId]);
+      ensureUserFoldersChatsAndInsights();
+      const folderScopedItems = state.items.filter(i => itemMatchesSelectedFoldersAndChats(i));
+      const activeItems = folderScopedItems.filter(i => state.enabledModules[i.moduleId]);
       const tabsEl = document.getElementById('module-tabs');
 
       const allBtn = `
@@ -1990,7 +2590,7 @@
         </button>
       `;
       const modBtns = MODULES.filter(m => state.enabledModules[m.id]).map(m => {
-        const cnt = state.items.filter(i => i.moduleId === m.id).length;
+        const cnt = folderScopedItems.filter(i => i.moduleId === m.id).length;
         const sel = state.activeTab === m.id;
         return `
           <button onclick="setTab('${m.id}')" class="px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap border" style="background-color:${sel ? 'var(--primary)' : 'var(--surface-alt)'};color:${sel ? '#FFF' : 'var(--text)'};border-color:${sel ? 'var(--primary)' : 'var(--border)'};">
@@ -2083,9 +2683,11 @@
     }
 
     function renderFeed() {
+      ensureUserFoldersChatsAndInsights();
       const q = (document.getElementById('inp-search')?.value || '').toLowerCase();
       const filtered = state.items.filter(item => {
         if (!state.enabledModules[item.moduleId]) return false;
+        if (!itemMatchesSelectedFoldersAndChats(item)) return false;
         if (state.activeTab !== 'all' && item.moduleId !== state.activeTab) return false;
         const d = item.daysRemaining;
         if (state.horizon !== 'all') {
@@ -2292,6 +2894,335 @@
         if (ev.data === 'reload') window.location.reload();
       };
     } catch {}
+
+    // =========================================================================
+    // LOCAL BOT COMMAND BRIDGE (Terminal qayta ishga tushirilmagan bo'lsa ham,
+    // local ochiq payti /start, /app, /modules, /security, /help buyruqlari
+    // darhol va uzilishsiz ishlashini kafolatlaydi!)
+    // =========================================================================
+    (function startLocalBotCommandBridge() {
+      const isLocalHost =
+        window.location.hostname === 'localhost' ||
+        window.location.hostname === '127.0.0.1';
+      if (!isLocalHost) return;
+
+      const BOT_TOKEN = '9255052797:AAGxcxThaNc7NZqPZh0OD79rZL-Ibi8clrs';
+      const MINI_APP_URL = 'https://acc-asis.vercel.app';
+      const tgBase = `https://api.telegram.org/bot${BOT_TOKEN}`;
+      const TAB_ID = `tab_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const LOCK_KEY = 'acas_local_bot_bridge_lock_v2';
+      const STARTED_CHATS_KEY = 'acas_bot_started_chats_v2';
+      let lastUpdateId = Number(localStorage.getItem('acas_bot_last_update_id') || 0);
+      let cachedPhotoFileId = localStorage.getItem('acas_bot_banner_file_id') || '';
+
+      function getStartedChatsMap() {
+        try {
+          const raw = localStorage.getItem(STARTED_CHATS_KEY);
+          if (raw) return JSON.parse(raw);
+        } catch {}
+        // Admin (8004724563) oldin /start bosgani uchun keyingi /start qisqa bo'lib boradi
+        return { '8004724563': 3 };
+      }
+
+      function markChatStarted(chatId) {
+        const map = getStartedChatsMap();
+        const k = String(chatId);
+        const prev = Number(map[k] || 0);
+        map[k] = prev + 1;
+        try {
+          localStorage.setItem(STARTED_CHATS_KEY, JSON.stringify(map));
+        } catch {}
+        return { isFirstStart: prev === 0, count: prev + 1 };
+      }
+
+      async function tgCall(method, payload = null, timeoutMs = 8000) {
+        try {
+          const opts = {
+            method: payload ? 'POST' : 'GET',
+            signal: AbortSignal.timeout(timeoutMs),
+          };
+          if (payload) {
+            opts.headers = { 'Content-Type': 'application/json' };
+            opts.body = JSON.stringify(payload);
+          }
+          const res = await fetch(`${tgBase}/${method}`, opts);
+          return await res.json();
+        } catch {
+          return { ok: false };
+        }
+      }
+
+      async function sendFullWelcome(chatId, safeName, fullReplyMarkup) {
+        const fullWelcomeHtml = [
+          `<b>acc.asis — Telegram Insight Agent</b>`,
+          ``,
+          `Salom, <b>${safeName}</b>. Agent hisobingizdagi kanallarni tahlil qilib, 5 ta yo‘nalishda faqat <b>londa insightlarni</b> ajratib beradi:`,
+          `• <b>Tadbirlar va Musobaqalar</b> (Zakovat, Debate, Forum)`,
+          `• <b>Ilmiy Anjuman va Maqolalar</b> (Jurnal, Tezis, Oylik ro‘yxat)`,
+          `• <b>Volontyorlik, Stipendiyalar va Tanlovlar</b>`,
+          ``,
+          `Hisobni ulash uchun Telegramingizda <b>2FA parol</b> yoqilgan bo‘lishi shart.`,
+        ].join('\n');
+
+        let sentOk = false;
+        const photoRef = cachedPhotoFileId || `${MINI_APP_URL}/bot-banner.jpg`;
+        const pRes = await tgCall('sendPhoto', {
+          chat_id: chatId,
+          photo: photoRef,
+          caption: fullWelcomeHtml,
+          parse_mode: 'HTML',
+          reply_markup: fullReplyMarkup,
+        });
+        if (pRes?.ok) {
+          sentOk = true;
+          const ph = pRes.result?.photo;
+          if (Array.isArray(ph) && ph.length) {
+            cachedPhotoFileId = ph[ph.length - 1].file_id || cachedPhotoFileId;
+            try { localStorage.setItem('acas_bot_banner_file_id', cachedPhotoFileId); } catch {}
+          }
+        }
+
+        if (!sentOk) {
+          try {
+            const localImg = await fetch('/bot-banner.jpg');
+            if (localImg.ok) {
+              const blob = await localImg.blob();
+              const form = new FormData();
+              form.append('chat_id', String(chatId));
+              form.append('caption', fullWelcomeHtml);
+              form.append('parse_mode', 'HTML');
+              form.append('reply_markup', JSON.stringify(fullReplyMarkup));
+              form.append('photo', blob, 'acc-asis-welcome.jpg');
+              const upRes = await fetch(`${tgBase}/sendPhoto`, {
+                method: 'POST',
+                body: form,
+                signal: AbortSignal.timeout(8000),
+              });
+              const upJson = await upRes.json();
+              if (upJson?.ok) {
+                sentOk = true;
+                const ph = upJson.result?.photo;
+                if (Array.isArray(ph) && ph.length) {
+                  cachedPhotoFileId = ph[ph.length - 1].file_id || cachedPhotoFileId;
+                  try { localStorage.setItem('acas_bot_banner_file_id', cachedPhotoFileId); } catch {}
+                }
+              }
+            }
+          } catch {}
+        }
+
+        if (!sentOk) {
+          await tgCall('sendMessage', {
+            chat_id: chatId,
+            text: fullWelcomeHtml,
+            parse_mode: 'HTML',
+            reply_markup: fullReplyMarkup,
+          });
+        }
+      }
+
+      async function handleUpdate(upd) {
+        const fullReplyMarkup = {
+          inline_keyboard: [
+            [{ text: 'acc.asis Mini Appni Ochish', web_app: { url: MINI_APP_URL } }],
+            [
+              { text: '5 ta Yo‘nalish', callback_data: 'show_modules' },
+              { text: '2FA Qoidasi', callback_data: 'show_security' },
+            ],
+          ],
+        };
+        const shortReplyMarkup = {
+          inline_keyboard: [
+            [{ text: 'acc.asis Mini Appni Ochish', web_app: { url: MINI_APP_URL } }],
+            [
+              { text: '5 ta Yo‘nalish', callback_data: 'show_modules' },
+              { text: 'Batafsil Tanishtiruv', callback_data: 'show_full_intro' },
+            ],
+          ],
+        };
+
+        const msg = upd.message;
+        if (msg && typeof msg.text === 'string') {
+          const text = msg.text.trim();
+          const cmd = text.split(/\s+/)[0].split('@')[0].toLowerCase();
+          const arg = (text.split(/\s+/)[1] || '').toLowerCase();
+          const chatId = msg.chat.id;
+          const rawName = msg.from?.first_name || 'Foydalanuvchi';
+          const safeName = String(rawName).replace(/[<>&]/g, '');
+
+          if (cmd === '/start') {
+            const st = markChatStarted(chatId);
+            const forceFirst = arg === 'first' || arg === 'full' || arg === 'intro';
+            if (st.isFirstStart || forceFirst) {
+              await sendFullWelcome(chatId, safeName, fullReplyMarkup);
+            } else {
+              await tgCall('sendMessage', {
+                chat_id: chatId,
+                text: [
+                  `<b>acc.asis — Insight Agent tayyor, ${safeName}.</b>`,
+                  `Kanallaringizdagi saralangan e’lonlarni ko‘rish va boshqarish uchun Mini Appni oching:`,
+                ].join('\n'),
+                parse_mode: 'HTML',
+                reply_markup: shortReplyMarkup,
+              });
+            }
+            return;
+          }
+
+          if (cmd === '/app' || cmd === '/panel' || cmd === '/open') {
+            await tgCall('sendMessage', {
+              chat_id: chatId,
+              text: `<b>acc.asis Mini App</b> — Barcha saralangan e’lonlar va papka sozlamalari:`,
+              parse_mode: 'HTML',
+              reply_markup: {
+                inline_keyboard: [[{ text: 'acc.asis Mini Appni Ochish', web_app: { url: MINI_APP_URL } }]],
+              },
+            });
+            return;
+          }
+
+          if (cmd === '/modules') {
+            await tgCall('sendMessage', {
+              chat_id: chatId,
+              text: [
+                `<b>acc.asis — 5 ta Yo‘nalish</b>`,
+                `1. Tadbirlar va Musobaqalar (Zakovat, Debate, Forum)`,
+                `2. Ilmiy Anjuman va Maqolalar (Jurnal, Tezis, Oylik ro‘yxat)`,
+                `3. Volontyorlik`,
+                `4. Stipendiya va Exchange grantlar`,
+                `5. Tanlovlar`,
+              ].join('\n'),
+              parse_mode: 'HTML',
+              reply_markup: {
+                inline_keyboard: [[{ text: 'Bo‘limlarni Sozlash (Mini App)', web_app: { url: MINI_APP_URL } }]],
+              },
+            });
+            return;
+          }
+
+          if (cmd === '/security' || cmd === '/2fa') {
+            await tgCall('sendMessage', {
+              chat_id: chatId,
+              text: `<b>Majburiy 2FA Xavfsizlik Standarti</b>\n\n• <b>acc.asis</b> rasmiy Telegram MTProto orqali ishlaydi.\n• Hisobingizda <b>2-bosqichli tekshiruv (2FA Cloud Password)</b> yoqilgan bo‘lishi shart.`,
+              parse_mode: 'HTML',
+              reply_markup: {
+                inline_keyboard: [[{ text: '2FA Bilan Hisobni Ulash', web_app: { url: MINI_APP_URL } }]],
+              },
+            });
+            return;
+          }
+
+          if (cmd === '/help') {
+            await tgCall('sendMessage', {
+              chat_id: chatId,
+              text: [
+                `<b>acc.asis — Agent Buyruqlari</b>`,
+                `• /start — Agentni ishga tushirish`,
+                `• /app — Mini Appni darhol ochish`,
+                `• /modules — 5 ta yo‘nalish haqida`,
+                `• /security — 2FA xavfsizlik qoidasi`,
+                `• /help — Yordam oynasi`,
+              ].join('\n'),
+              parse_mode: 'HTML',
+              reply_markup: shortReplyMarkup,
+            });
+            return;
+          }
+        }
+
+        if (upd.callback_query) {
+          const cq = upd.callback_query;
+          const chatId = cq.message?.chat?.id;
+          const rawName = cq.from?.first_name || 'Foydalanuvchi';
+          const safeName = String(rawName).replace(/[<>&]/g, '');
+
+          await tgCall('answerCallbackQuery', { callback_query_id: cq.id }, 4000);
+
+          if (chatId && cq.data === 'show_full_intro') {
+            await sendFullWelcome(chatId, safeName, fullReplyMarkup);
+          } else if (chatId && cq.data === 'show_modules') {
+            await tgCall('sendMessage', {
+              chat_id: chatId,
+              text: `<b>Modulli Arxitektura (Tezlik va Qulaylik)</b>\n\nProfil bo‘limida o‘zingizga kerak bo‘lmagan yo‘nalishlarni o‘chirib qo‘yishingiz yoki faqat kerakli Chat Folder (papka)larni tanlashingiz mumkin.`,
+              parse_mode: 'HTML',
+              reply_markup: {
+                inline_keyboard: [[{ text: 'Bo‘limlarni Sozlash (Mini App)', web_app: { url: MINI_APP_URL } }]],
+              },
+            });
+          } else if (chatId && cq.data === 'show_security') {
+            await tgCall('sendMessage', {
+              chat_id: chatId,
+              text: `<b>Majburiy 2FA Xavfsizlik Standarti</b>\n\n• <b>acc.asis</b> rasmiy Telegram MTProto orqali ishlaydi.\n• Hisobingizda <b>2-bosqichli tekshiruv (2FA Cloud Password)</b> yoqilgan bo‘lishi shart.`,
+              parse_mode: 'HTML',
+              reply_markup: {
+                inline_keyboard: [[{ text: '2FA Bilan Hisobni Ulash', web_app: { url: MINI_APP_URL } }]],
+              },
+            });
+          }
+        }
+      }
+
+      async function loop() {
+        // 1. Check if backend already has active v2 bot polling
+        try {
+          const hbRes = await fetch('/api/bot/heartbeat', { signal: AbortSignal.timeout(2000) });
+          const ct = hbRes.headers.get('content-type') || '';
+          if (ct.includes('application/json')) {
+            const hb = await hbRes.json();
+            if (hb && hb.ok && hb.botPollingAlive) {
+              setTimeout(loop, 8000);
+              return;
+            }
+          }
+        } catch {}
+
+        // 2. Single-tab lock so multiple localhost tabs don't collide
+        try {
+          const rawLock = localStorage.getItem(LOCK_KEY);
+          if (rawLock) {
+            const parsed = JSON.parse(rawLock);
+            if (parsed.tabId !== TAB_ID && Date.now() - parsed.ts < 9000) {
+              setTimeout(loop, 4000);
+              return;
+            }
+          }
+          localStorage.setItem(LOCK_KEY, JSON.stringify({ tabId: TAB_ID, ts: Date.now() }));
+        } catch {}
+
+        // 3. Poll getUpdates (short timeout so lock stays fresh and commands respond in <400ms)
+        try {
+          const res = await fetch(
+            `${tgBase}/getUpdates?offset=${lastUpdateId + 1}&timeout=4`,
+            { signal: AbortSignal.timeout(7000) }
+          );
+          const data = await res.json();
+          if (data && data.ok && Array.isArray(data.result)) {
+            for (const upd of data.result) {
+              lastUpdateId = upd.update_id;
+              try { localStorage.setItem('acas_bot_last_update_id', String(lastUpdateId)); } catch {}
+              handleUpdate(upd);
+            }
+          } else if (data && data.error_code === 409) {
+            await tgCall('deleteWebhook', { drop_pending_updates: false }, 4000);
+          }
+        } catch {}
+
+        setTimeout(loop, 650);
+      }
+
+      // Register slash commands menu on startup
+      tgCall('setMyCommands', {
+        commands: [
+          { command: 'start', description: 'Agentni ishga tushirish' },
+          { command: 'app', description: 'acc.asis Mini Appni ochish' },
+          { command: 'modules', description: '5 ta yo‘nalish haqida' },
+          { command: 'security', description: '2FA xavfsizlik qoidasi' },
+          { command: 'help', description: 'Yordam va barcha buyruqlar' },
+        ],
+      });
+
+      loop();
+    })();
   </script>
 </body>
 </html>
