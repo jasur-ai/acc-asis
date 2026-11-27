@@ -2457,7 +2457,4 @@ server.listen(PORT, '0.0.0.0', () => {
   if (!process.env.DISABLE_BOT_POLLING) {
     pollTelegramBot();
   }
-  if (!process.env.RENDER) {
-    import('./auto-deploy.mjs').catch(() => {});
-  }
 });
