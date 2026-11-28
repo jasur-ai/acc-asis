@@ -2180,7 +2180,7 @@ const rx = (s) => new RegExp(s, 'i');
 
 const SIGNALS = {
   competitions: {
-    strong: [rx('\\btanlov'), rx('\\bolimpiada'), rx('\\bchempionat'), rx('\\bgrand\\s?final'), rx('pul mukofot'), rx('\\bsovrin'), rx('\\bcontest\\b'), rx('\\bcompetition\\b')],
+    strong: [rx('hackathon|xakaton|hakaton'), rx('ideathon|ideaton'), rx('datathon|dataton'), rx('case[-\\s]?championship|keys[-\\s]?chempionat'), rx('coding[-\\s]?challenge'), rx('\\bmusobaqa'), rx('\\btanlov'), rx('\\bolimpiada|olympiad'), rx('\\bchempionat'), rx('\\bgrand\\s?final'), rx('pul mukofot'), rx('\\bsovrin'), rx('\\bcontest\\b'), rx('\\bcompetition\\b')],
     weak: [rx('\\bmukofot'), rx('\\bbosqich'), rx('\\bfinal'), rx(`g${AP}olib`)],
   },
   scholarships: {
@@ -2196,17 +2196,18 @@ const SIGNALS = {
     weak: [rx('\\bjurnal'), rx('\\bmaqola'), rx('\\bnashr'), rx('\\bdoi\\b'), rx('ilmiy')],
   },
   events: {
-    strong: [rx('\\btadbir'), rx('zakovat'), rx('\\bdebate\\b|\\bdebat'), rx('hackathon|xakaton'), rx('\\bforum'), rx('\\bseminar'), rx('\\bwebinar|vebinar'), rx('master[-\\s]?klass'), rx('\\btrening'), rx('ochiq eshiklar')],
+    strong: [rx('hackathon|xakaton|hakaton'), rx('\\btadbir'), rx('zakovat'), rx('\\bdebate\\b|\\bdebat'), rx('\\bforum'), rx('\\bseminar'), rx('\\bwebinar|vebinar'), rx('master[-\\s]?klass'), rx('\\btrening'), rx('ochiq eshiklar')],
     weak: [rx('uchrashuv'), rx(`ro${AP}yxatdan o${AP}ting`), rx('\\bmanzil')],
   },
 };
 
 // Shovqin: bular akademik e'lon emas. Kuchli signal 6+ bo'lmasa rad etiladi.
-const NEGATIVE = [rx('\\bkonsert'), rx('\\bkontsert'), rx('\\bconcert'), rx('\\bkino\\b'), rx('chegirma'), rx('\\baksiya\\b'), rx('sotiladi'), rx('\\bvakansiya'), rx(`ish o${AP}rni`), rx('promokod'), rx('#reklama')];
+const NEGATIVE = [rx('\\bkonsert'), rx('\\bkontsert'), rx('\\bconcert'), rx('\\bkino\\b'), rx('chegirma'), rx('\\baksiya\\b'), rx('sotiladi'), rx('\\bvakansiya'), rx(`ish o${AP}rni`), rx('promokod'), rx('#reklama'), rx('kursga yoziling'), rx('pullik kurs'), rx('giveaway'), rx('ijaraga'), rx('sotuvda')];
 const ACTION = rx(`muddat|deadline|ro${AP}yxatdan|qabul|ariza|topshir|registrat|https?://|t\\.me/`);
 // "Yopildi" turidagi inkor: bunday e'lonlar chiqmaydi
-const CLOSED = [rx('\\byopildi'), rx('yakunlandi'), rx('\\btugadi'), rx('tugallandi'), rx(`qabul (to${AP}xtatildi|yopildi|tugadi)`), rx('muddati (tugadi|o.tdi)'), rx(`bo${AP}lib o${AP}tdi`), rx(`o${AP}tkazildi`), rx('\\bclosed\\b'), rx('registration (is )?closed'), rx('g.oliblar e.lon qilindi')];
+const CLOSED = [rx('\\byopildi'), rx('yakunlandi'), rx('\\btugadi'), rx('tugallandi'), rx(`qabul (to${AP}xtatildi|yopildi|tugadi)`), rx('muddati (tugadi|o.tdi)'), rx(`bo${AP}lib o${AP}tdi`), rx(`o${AP}tkazildi`), rx('\\bclosed\\b'), rx('registration (is )?closed'), rx('g.oliblar e.lon qilindi'), rx('tabriklaymiz'), rx('taqdirlandi'), rx('g.olib bo.ldi'), rx('sovrindori bo.ldi'), rx('fotolavha'), rx('yakuniga yetdi'), rx('natijalari e.lon')];
 const PRIORITY = ['competitions', 'scholarships', 'volunteering', 'conferences', 'events'];
+const BOILERPLATE_FOOTER_RE = /^(?:👉|📢|🔗|📲|\s)*(?:@\w+|https?:\/\/t\.me\/\w+|kanal(?:imiz)?ga obuna|bizning ijtimoiy|rasmiy sahifa|telegram\s*\|\s*instagram)/i;
 
 const UZ_MONTHS = { yanvar: 0, fevral: 1, mart: 2, aprel: 3, may: 4, iyun: 5, iyul: 6, avgust: 7, sentabr: 8, sentyabr: 8, oktabr: 9, oktyabr: 9, noyabr: 10, dekabr: 11 };
 const MONTH_RE = Object.keys(UZ_MONTHS).join('|');
@@ -2240,7 +2241,11 @@ function findFutureDate(text) {
 function classifyPost(text, handle, channelTitle, messageId, enabled, forcedModule, suffix = '', postedAt = 0) {
   const clean = (text || '').trim();
   if (clean.length < (forcedModule ? 25 : 60)) return null;
-  const lower = clean.toLowerCase();
+
+  const rawLines = clean.split('\n').map((l) => l.trim()).filter(Boolean);
+  const meaningfulLines = rawLines.filter((l) => !BOILERPLATE_FOOTER_RE.test(l));
+  const scoringText = (meaningfulLines.length > 0 ? meaningfulLines : rawLines).join('\n');
+  const lower = scoringText.toLowerCase();
 
   let best = forcedModule || null;
   let bestScore = forcedModule ? 99 : 0;
@@ -2268,7 +2273,7 @@ function classifyPost(text, handle, channelTitle, messageId, enabled, forcedModu
     if (!forcedModule && bestScore < 4 && !ACTION.test(lower)) return null;
   }
 
-  const lines = clean.split('\n').map((l) => l.trim()).filter(Boolean);
+  const lines = meaningfulLines.length > 0 ? meaningfulLines : rawLines;
   const cleanLine = (s) => s.replace(/^[^\p{L}\p{N}«"“]+/u, '').replace(/#\S+/g, '').replace(/https?:\/\/\S+/g, '').trim();
   const title = cleanLine(lines[0] || '').slice(0, 110) || 'E’lon';
   const insight = lines.slice(1).map(cleanLine).filter(Boolean).join(' ').slice(0, 130);
@@ -2306,7 +2311,15 @@ function classifyPost(text, handle, channelTitle, messageId, enabled, forcedModu
   if (best === 'events') {
     return {
       ...base,
-      category: /zakovat/i.test(lower) ? 'Zakovat' : /debat/i.test(lower) ? 'Debate' : /seminar|webinar|vebinar|master/i.test(lower) ? 'Seminar' : 'Tadbir',
+      category: /hackathon|xakaton|hakaton|ideathon|datathon/i.test(lower)
+        ? 'Hackathon'
+        : /zakovat|breyn/i.test(lower)
+        ? 'Zakovat'
+        : /debat|munozara/i.test(lower)
+        ? 'Debate'
+        : /seminar|webinar|vebinar|master|trening|workshop/i.test(lower)
+        ? 'Seminar'
+        : 'Tadbir',
       dateFormatted: d.label,
       location: pick(/(?:Manzil|Joy|Joyi)\s*[:\-–]\s*([^\n]+)/i) || (/online|onlayn|zoom/i.test(lower) ? 'Onlayn' : ''),
       organizer,
@@ -2329,9 +2342,20 @@ function classifyPost(text, handle, channelTitle, messageId, enabled, forcedModu
       requirements: pick(/(?:Talablar)\s*[:\-–]\s*([^\n]+)/i),
     };
   }
+  const isHack = /hackathon|xakaton|hakaton|ideathon|datathon/i.test(lower);
+  const isOlymp = /olimpiada|olympiad/i.test(lower);
+  const stage = /respublika|xalqaro|final/i.test(lower)
+    ? 'Respublika bosqichi'
+    : /universitet|fakultet|otm|institut|kafedra/i.test(lower)
+    ? 'Universitet bosqichi'
+    : isHack
+    ? 'Respublika bosqichi'
+    : 'Universitet bosqichi';
   return {
     ...base,
-    currentStage: /respublika/i.test(lower) ? 'Respublika bosqichi' : /universitet/i.test(lower) ? 'Universitet bosqichi' : '',
+    compType: isHack ? 'Hackathon' : isOlymp ? 'Olimpiada' : 'Tanlov',
+    category: isHack ? 'Hackathon' : isOlymp ? 'Olimpiada' : 'Tanlov',
+    currentStage: stage,
     prizePool: pick(/(?:Mukofot|Sovrin|Pul mukofoti)\s*[:\-–]\s*([^\n]+)/i),
     stageOrder: pick(/(?:Bosqichlar)\s*[:\-–]\s*([^\n]+)/i),
     requiredDocs: pick(/(?:Hujjatlar)\s*[:\-–]\s*([^\n]+)/i),
